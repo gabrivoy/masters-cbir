@@ -90,7 +90,6 @@ All of this should be simple, highly documented, and easy to use, so that users 
 - `MLflow` for experiment tracking, to allow users to easily track and compare the performance of different models and techniques, and to provide insights into the results of the experiments.
 - `Streamlit` for the dashboard, to provide an interactive and user-friendly way to visualize the vector space and search results, and to allow users to easily explore the results of their experiments.
 
-
 ## Deliverables
 
 1) For programming project:
