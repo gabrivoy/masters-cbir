@@ -13,3 +13,4 @@ data/*
 docs/raai-autodoc
 .ipynb_checkpoints/
 mvp/manifests/*.jsonl
+artifacts/
