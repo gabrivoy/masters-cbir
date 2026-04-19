@@ -391,17 +391,19 @@ The size distribution confirms that many objects are very small. A bbox-level CB
 
 | Deliverable | Description |
 | --- | --- |
-| BBox-level class manifest | One record per bbox for a selected class, enriched with crop coordinates and metadata |
-| Inspection notebook | Notebook capable of rendering the frame, the selected bbox, the padded crop, and a compact per-item report |
+| BBox-level class manifest | One record per bbox for a selected class, enriched with metadata; crop coordinates are derived at runtime |
+| Inspection notebook | Notebook capable of rendering the frame, the selected bbox, the runtime crop, and a compact per-item report |
 | Default benchmark class | `Traineira`, with the same notebook interface usable for other classes later |
 
 ### Manifest schema for the first pass
 
 | Field | Meaning |
 | --- | --- |
+| `item_id` | Deterministic bbox item id in the form `<class_slug>:<split>:<annotation_id>` |
 | `target_class` | Selected final class label |
 | `split` | `train`, `val`, or `test` |
 | `idx_in_class_split` | Stable 1-based index within the class and split |
+| `annotation_id` | Object annotation id from the COCO export |
 | `image_path` | Absolute path to the source frame |
 | `image_filename` | Source frame filename |
 | `image_id` | Image id from the COCO export |
@@ -410,9 +412,6 @@ The size distribution confirms that many objects are very small. A bbox-level CB
 | `bbox_x`, `bbox_y`, `bbox_w`, `bbox_h` | Original bbox in COCO `xywh` format |
 | `bbox_area` | Original bbox area |
 | `size_bucket` | Size bucket derived from `bbox_area` |
-| `crop_x1`, `crop_y1`, `crop_x2`, `crop_y2` | Padded crop coordinates clipped to image limits |
-| `crop_w`, `crop_h` | Final crop dimensions in pixels |
-| `padding_ratio` | Crop padding ratio |
 | `occluded` | Occlusion flag from the bbox attributes |
 | `difficult` | Difficult flag from the bbox attributes |
 | `n_objects_in_frame` | Number of object bboxes in the frame |
@@ -426,7 +425,7 @@ The size distribution confirms that many objects are very small. A bbox-level CB
 | `target_class` | `Traineira` | Class under inspection |
 | `split` | `train` | Split under inspection |
 | `idx` | `1` | 1-based index within the current selection |
-| `padding_ratio` | `0.15` | Relative crop padding around the bbox |
+| `padding_ratio` | `0.0` | Relative crop padding around the bbox |
 | `benchmark_only` | `True` | Restrict the notebook view to `medium+` candidates |
 
 ### Expected notebook output per example
@@ -434,7 +433,7 @@ The size distribution confirms that many objects are very small. A bbox-level CB
 | Output block | Content |
 | --- | --- |
 | Frame view | Original frame with the selected bbox highlighted |
-| Crop view | Padded crop clipped to the image boundary |
+| Crop view | Runtime crop clipped to the image boundary |
 | Per-item report | Class, split, filename, path, camera, timestamp, bbox coordinates, crop dimensions in pixels, bbox area, size bucket, flags, number of objects in frame, other labels in frame, benchmark status |
 
 ### Execution path for the first CBIR evaluation
