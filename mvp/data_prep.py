@@ -8,8 +8,9 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+MANIFEST_VERSION = 2
 SPLITS = ("train", "val", "test")
-DEFAULT_PADDING_RATIO = 0.15
+DEFAULT_PADDING_RATIO = 0.0
 DEFAULT_BENCHMARK_AREA_THRESHOLD = 1024.0
 SIZE_BUCKETS = (
     ("micro 0-5", 0.0, 25.0),
@@ -69,21 +70,35 @@ def datumaro_annotation_path(split: str, repo_root: Path | None = None) -> Path:
     )
 
 
-def default_manifest_path(
-    target_class: str,
-    repo_root: Path | None = None,
-) -> Path:
-    root = repo_root or resolve_repo_root()
-    return root / "mvp" / "manifests" / f"{slugify_label(target_class)}_manifest.jsonl"
-
-
 def slugify_label(label: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "_", label.lower())
     return slug.strip("_")
 
 
+def class_artifact_dir(target_class: str, repo_root: Path | None = None) -> Path:
+    root = repo_root or resolve_repo_root()
+    return root / "data" / "cbir" / slugify_label(target_class) / "v1"
+
+
+def default_manifest_path(target_class: str, repo_root: Path | None = None) -> Path:
+    return class_artifact_dir(target_class, repo_root) / "manifest.jsonl"
+
+
+def default_summary_path(target_class: str, repo_root: Path | None = None) -> Path:
+    return class_artifact_dir(target_class, repo_root) / "summary.json"
+
+
+def default_rejected_path(target_class: str, repo_root: Path | None = None) -> Path:
+    return class_artifact_dir(target_class, repo_root) / "rejected.jsonl"
+
+
 def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text())
+
+
+def write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def normalize_timestamp(value: Any) -> int | str | None:
@@ -125,6 +140,24 @@ def clipped_crop_box(
     x2 = min(image_width, math.ceil(x + width + pad_x))
     y2 = min(image_height, math.ceil(y + height + pad_y))
     return x1, y1, x2, y2
+
+
+def validate_bbox(
+    bbox_xywh: tuple[float, float, float, float],
+    *,
+    image_width: int,
+    image_height: int,
+) -> tuple[bool, str | None]:
+    x, y, width, height = bbox_xywh
+    if width <= 0 or height <= 0:
+        return False, "non_positive_extent"
+    if x < 0 or y < 0:
+        return False, "negative_origin"
+    if x + width > image_width + 1e-6:
+        return False, "bbox_exceeds_image_width"
+    if y + height > image_height + 1e-6:
+        return False, "bbox_exceeds_image_height"
+    return True, None
 
 
 def object_categories(coco_data: dict[str, Any]) -> dict[int, str]:
@@ -201,20 +234,46 @@ def load_split_context(
     }
 
 
+def rejected_record(
+    *,
+    target_class: str,
+    split: str,
+    reason: str,
+    image: dict[str, Any] | None = None,
+    image_path: Path | None = None,
+    annotation: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "target_class": target_class,
+        "split": split,
+        "reason": reason,
+    }
+    if image is not None:
+        payload["image_id"] = image["id"]
+        payload["image_filename"] = image["file_name"]
+    if image_path is not None:
+        payload["image_path"] = str(image_path)
+    if annotation is not None:
+        payload["annotation_id"] = annotation["id"]
+        payload["bbox"] = annotation.get("bbox")
+    return payload
+
+
 def build_class_manifest(
     target_class: str,
     *,
-    padding_ratio: float = DEFAULT_PADDING_RATIO,
     benchmark_area_threshold: float = DEFAULT_BENCHMARK_AREA_THRESHOLD,
     repo_root: Path | None = None,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     root = repo_root or resolve_repo_root()
     available_classes = final_object_classes(root)
     if target_class not in available_classes:
         joined = ", ".join(available_classes)
         raise ValueError(f"Unknown target class {target_class!r}. Available classes: {joined}")
 
+    class_slug = slugify_label(target_class)
     manifests_by_split: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    rejected: list[dict[str, Any]] = []
 
     for split in SPLITS:
         context = load_split_context(split, root)
@@ -233,23 +292,51 @@ def build_class_manifest(
             frame_stem = Path(image["file_name"]).stem
             image_metadata = datumaro_metadata.get(frame_stem, {})
             image_path = image_root(root) / image["file_name"]
+
+            target_annotations = [
+                annotation for annotation in annotations if annotation["label"] == target_class
+            ]
+            if not target_annotations:
+                continue
+
             if not image_path.exists():
-                raise FileNotFoundError(f"Image file not found: {image_path}")
+                for annotation in target_annotations:
+                    rejected.append(
+                        rejected_record(
+                            target_class=target_class,
+                            split=split,
+                            reason="image_missing",
+                            image=image,
+                            image_path=image_path,
+                            annotation=annotation,
+                        )
+                    )
+                continue
 
-            for annotation in annotations:
-                if annotation["label"] != target_class:
-                    continue
-
+            for annotation in target_annotations:
                 bbox_x, bbox_y, bbox_w, bbox_h = annotation["bbox"]
-                crop_x1, crop_y1, crop_x2, crop_y2 = clipped_crop_box(
-                    (bbox_x, bbox_y, bbox_w, bbox_h),
-                    image["width"],
-                    image["height"],
-                    padding_ratio,
+                bbox = (float(bbox_x), float(bbox_y), float(bbox_w), float(bbox_h))
+                is_valid, reason = validate_bbox(
+                    bbox,
+                    image_width=image["width"],
+                    image_height=image["height"],
                 )
+                if not is_valid:
+                    rejected.append(
+                        rejected_record(
+                            target_class=target_class,
+                            split=split,
+                            reason=reason or "invalid_bbox",
+                            image=image,
+                            image_path=image_path,
+                            annotation=annotation,
+                        )
+                    )
+                    continue
 
                 manifests_by_split[split].append(
                     {
+                        "item_id": f"{class_slug}:{split}:{annotation['id']}",
                         "target_class": target_class,
                         "split": split,
                         "idx_in_class_split": 0,
@@ -257,21 +344,15 @@ def build_class_manifest(
                         "image_path": str(image_path),
                         "image_filename": image["file_name"],
                         "image_id": image_id,
-                        "camera_id": image_metadata.get("camera_id") or camera_from_filename(image["file_name"]),
+                        "camera_id": image_metadata.get("camera_id")
+                        or camera_from_filename(image["file_name"]),
                         "timestamp": image_metadata.get("timestamp"),
-                        "bbox_x": float(bbox_x),
-                        "bbox_y": float(bbox_y),
-                        "bbox_w": float(bbox_w),
-                        "bbox_h": float(bbox_h),
+                        "bbox_x": bbox[0],
+                        "bbox_y": bbox[1],
+                        "bbox_w": bbox[2],
+                        "bbox_h": bbox[3],
                         "bbox_area": float(annotation["area"]),
                         "size_bucket": size_bucket(float(annotation["area"])),
-                        "crop_x1": crop_x1,
-                        "crop_y1": crop_y1,
-                        "crop_x2": crop_x2,
-                        "crop_y2": crop_y2,
-                        "crop_w": crop_x2 - crop_x1,
-                        "crop_h": crop_y2 - crop_y1,
-                        "padding_ratio": padding_ratio,
                         "occluded": bool(annotation.get("attributes", {}).get("occluded", False)),
                         "difficult": bool(annotation.get("attributes", {}).get("difficult", False)),
                         "n_objects_in_frame": len(annotations),
@@ -297,14 +378,15 @@ def build_class_manifest(
             record["idx_in_class_split"] = index
             manifest.append(record)
 
-    return manifest
-
-
-def write_manifest(records: list[dict[str, Any]], output_path: Path) -> None:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_path.open("w", encoding="utf-8") as handle:
-        for record in records:
-            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+    rejected.sort(
+        key=lambda record: (
+            record["split"],
+            record.get("image_filename", ""),
+            record.get("annotation_id", -1),
+            record["reason"],
+        )
+    )
+    return manifest, rejected
 
 
 def load_manifest(manifest_path: Path) -> list[dict[str, Any]]:
@@ -312,26 +394,102 @@ def load_manifest(manifest_path: Path) -> list[dict[str, Any]]:
         return [json.loads(line) for line in handle if line.strip()]
 
 
-def manifest_summary(records: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
-    summary: dict[str, dict[str, int]] = {}
+def write_jsonl(records: list[dict[str, Any]], output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as handle:
+        for record in records:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def summarize_records(
+    target_class: str,
+    records: list[dict[str, Any]],
+    rejected: list[dict[str, Any]],
+) -> dict[str, Any]:
+    counts_by_split: dict[str, dict[str, int]] = {}
     for split in SPLITS:
         split_records = [record for record in records if record["split"] == split]
-        summary[split] = {
+        counts_by_split[split] = {
             "records": len(split_records),
             "benchmark_records": sum(
                 1 for record in split_records if record["is_benchmark_candidate"]
             ),
         }
-    return summary
+
+    counts_by_camera = Counter(record["camera_id"] for record in records)
+    counts_by_size_bucket = Counter(record["size_bucket"] for record in records)
+    rejected_by_reason = Counter(record["reason"] for record in rejected)
+
+    return {
+        "manifest_version": MANIFEST_VERSION,
+        "target_class": target_class,
+        "total_records": len(records),
+        "total_rejected": len(rejected),
+        "counts_by_split": counts_by_split,
+        "counts_by_camera_id": dict(sorted(counts_by_camera.items())),
+        "counts_by_size_bucket": {
+            bucket_name: counts_by_size_bucket.get(bucket_name, 0)
+            for bucket_name, _, _ in SIZE_BUCKETS
+        },
+        "rejected_by_reason": dict(sorted(rejected_by_reason.items())),
+    }
 
 
-def print_summary(target_class: str, records: list[dict[str, Any]], output_path: Path) -> None:
-    summary = manifest_summary(records)
+def write_manifest_artifacts(
+    target_class: str,
+    records: list[dict[str, Any]],
+    rejected: list[dict[str, Any]],
+    *,
+    output_dir: Path | None = None,
+    repo_root: Path | None = None,
+) -> dict[str, Path]:
+    root = repo_root or resolve_repo_root()
+    artifact_dir = output_dir or class_artifact_dir(target_class, root)
+    manifest_path = artifact_dir / "manifest.jsonl"
+    summary_path = artifact_dir / "summary.json"
+    rejected_path = artifact_dir / "rejected.jsonl"
+
+    write_jsonl(records, manifest_path)
+    write_json(summary_path, summarize_records(target_class, records, rejected))
+    write_jsonl(rejected, rejected_path)
+    return {
+        "artifact_dir": artifact_dir,
+        "manifest_path": manifest_path,
+        "summary_path": summary_path,
+        "rejected_path": rejected_path,
+    }
+
+
+def select_manifest_records(
+    records: list[dict[str, Any]],
+    *,
+    split: str = "all",
+    benchmark_only: bool = False,
+) -> list[dict[str, Any]]:
+    filtered = records
+    if split != "all":
+        filtered = [record for record in filtered if record["split"] == split]
+    if benchmark_only:
+        filtered = [record for record in filtered if record["is_benchmark_candidate"]]
+    return filtered
+
+
+def print_summary(
+    target_class: str,
+    records: list[dict[str, Any]],
+    rejected: list[dict[str, Any]],
+    artifact_paths: dict[str, Path],
+) -> None:
+    summary = summarize_records(target_class, records, rejected)
     print(f"Manifest written for class: {target_class}")
-    print(f"Output path: {output_path}")
-    print(f"Total records: {len(records)}")
+    print(f"Artifact dir: {artifact_paths['artifact_dir']}")
+    print(f"Manifest path: {artifact_paths['manifest_path']}")
+    print(f"Summary path: {artifact_paths['summary_path']}")
+    print(f"Rejected path: {artifact_paths['rejected_path']}")
+    print(f"Total records: {summary['total_records']}")
+    print(f"Total rejected: {summary['total_rejected']}")
     for split in SPLITS:
-        split_summary = summary[split]
+        split_summary = summary["counts_by_split"][split]
         print(
             f"{split}: {split_summary['records']} total, "
             f"{split_summary['benchmark_records']} benchmark candidates"
@@ -348,36 +506,33 @@ def parse_args() -> argparse.Namespace:
         help="Final class label from the COCO export, for example 'Traineira'.",
     )
     parser.add_argument(
-        "--padding-ratio",
-        type=float,
-        default=DEFAULT_PADDING_RATIO,
-        help="Relative crop padding applied around the bbox.",
-    )
-    parser.add_argument(
         "--benchmark-area-threshold",
         type=float,
         default=DEFAULT_BENCHMARK_AREA_THRESHOLD,
         help="Minimum bbox area used to mark benchmark candidates.",
     )
     parser.add_argument(
-        "--output",
+        "--output-dir",
         type=Path,
         default=None,
-        help="Optional output path for the manifest. Defaults to mvp/manifests/<class>_manifest.jsonl.",
+        help="Optional output directory. Defaults to data/cbir/<class>/v1.",
     )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    output_path = args.output or default_manifest_path(args.target_class)
-    manifest = build_class_manifest(
+    manifest, rejected = build_class_manifest(
         args.target_class,
-        padding_ratio=args.padding_ratio,
         benchmark_area_threshold=args.benchmark_area_threshold,
     )
-    write_manifest(manifest, output_path)
-    print_summary(args.target_class, manifest, output_path)
+    artifact_paths = write_manifest_artifacts(
+        args.target_class,
+        manifest,
+        rejected,
+        output_dir=args.output_dir,
+    )
+    print_summary(args.target_class, manifest, rejected, artifact_paths)
     return 0
 
 
