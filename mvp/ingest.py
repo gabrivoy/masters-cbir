@@ -10,11 +10,18 @@ from typing import Any
 
 from tqdm import tqdm
 
-from data_prep import DEFAULT_PADDING_RATIO, load_manifest, select_manifest_records
+from data_prep import DEFAULT_PADDING_RATIO, load_manifest
 from db import DEFAULT_HOST, DEFAULT_PORT, connect, count, ensure_collection, recreate_collection
 from db import insert_batch as milvus_insert_batch
 from extract import load_model
 from extract import extract_batch as extract_embeddings
+from sampling import (
+    count_by_class,
+    count_by_field,
+    count_by_split,
+    filter_records,
+    sample_records_per_class,
+)
 
 
 def output_dir_for_collection(collection_name: str, repo_root: Path | None = None) -> Path:
@@ -48,6 +55,19 @@ def write_summary(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def load_records_from_manifests(manifest_paths: list[Path]) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    seen_item_ids: set[str] = set()
+    for manifest_path in manifest_paths:
+        for record in load_manifest(manifest_path):
+            item_id = record["item_id"]
+            if item_id in seen_item_ids:
+                raise ValueError(f"Duplicate item_id across manifests: {item_id}")
+            seen_item_ids.add(item_id)
+            records.append(record)
+    return records
+
+
 def enqueue_with_backpressure(
     write_queue: queue.Queue[object],
     item: object,
@@ -65,7 +85,7 @@ def enqueue_with_backpressure(
 
 def ingest_records(
     *,
-    manifest_path: Path,
+    manifest_paths: list[Path],
     collection_name: str,
     model_name: str,
     device: str,
@@ -77,14 +97,28 @@ def ingest_records(
     recreate: bool,
     host: str,
     port: str,
+    sample_per_class: int | None = None,
+    sample_strategy: str = "stratified",
+    sample_seed: int = 42,
     limit: int | None = None,
 ) -> dict[str, Any]:
+    if batch_size <= 0:
+        raise ValueError("--batch-size must be positive.")
+    if insert_batch_size <= 0:
+        raise ValueError("--insert-batch-size must be positive.")
+
     started_at = time.time()
-    records = load_manifest(manifest_path)
-    selected_records = select_manifest_records(
+    records = load_records_from_manifests(manifest_paths)
+    filtered_records = filter_records(
         records,
         split=split,
         benchmark_only=benchmark_only,
+    )
+    selected_records = sample_records_per_class(
+        filtered_records,
+        sample_per_class=sample_per_class,
+        strategy=sample_strategy,
+        seed=sample_seed,
     )
     if limit is not None:
         selected_records = selected_records[:limit]
@@ -160,17 +194,29 @@ def ingest_records(
 
     duration_seconds = time.time() - started_at
     collection_count = count(collection_name)
-    target_class = selected_records[0]["target_class"]
+    target_classes = sorted({record["target_class"] for record in selected_records})
     summary = {
-        "manifest_path": str(manifest_path),
+        "manifest_paths": [str(path) for path in manifest_paths],
         "collection_name": collection_name,
-        "target_class": target_class,
+        "target_classes": target_classes,
+        "available_records": len(records),
+        "filtered_records": len(filtered_records),
         "selected_records": len(selected_records),
+        "available_records_by_class": count_by_class(records),
+        "filtered_records_by_class": count_by_class(filtered_records),
+        "selected_records_by_class": count_by_class(selected_records),
+        "selected_records_by_split": count_by_split(selected_records),
+        "selected_records_by_camera_id": count_by_field(selected_records, "camera_id"),
+        "selected_records_by_size_bucket": count_by_field(selected_records, "size_bucket"),
         "inserted_count": writer_state["inserted_count"],
         "collection_count": collection_count,
         "split": split,
         "benchmark_only": benchmark_only,
         "padding_ratio": padding_ratio,
+        "sample_per_class": sample_per_class,
+        "sample_strategy": sample_strategy,
+        "sample_seed": sample_seed,
+        "limit": limit,
         "model_name": model_bundle["model_name"],
         "model_slug": model_bundle["model_slug"],
         "embedding_dim": embedding_dim,
@@ -191,7 +237,13 @@ def ingest_records(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Ingest bbox-level embeddings into Milvus.")
-    parser.add_argument("--manifest", type=Path, required=True, help="Path to manifest.jsonl.")
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        action="append",
+        required=True,
+        help="Path to manifest.jsonl. Repeat for multiclass collections.",
+    )
     parser.add_argument("--collection", required=True, help="Target Milvus collection name.")
     parser.add_argument(
         "--model",
@@ -202,7 +254,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--split",
         choices=("train", "val", "test", "all"),
-        default="all",
+        default="train",
         help="Split filter applied to the manifest.",
     )
     parser.add_argument(
@@ -233,6 +285,24 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Drop and recreate the collection before inserting.",
     )
+    parser.add_argument(
+        "--sample-per-class",
+        type=int,
+        default=None,
+        help="Optional deterministic cap per class after split/benchmark filtering.",
+    )
+    parser.add_argument(
+        "--sample-strategy",
+        choices=("stratified", "head"),
+        default="stratified",
+        help="Sampling strategy when --sample-per-class is set.",
+    )
+    parser.add_argument(
+        "--sample-seed",
+        type=int,
+        default=42,
+        help="Seed used by deterministic sampling.",
+    )
     parser.add_argument("--host", default=DEFAULT_HOST, help="Milvus host.")
     parser.add_argument("--port", default=DEFAULT_PORT, help="Milvus port.")
     parser.add_argument(
@@ -247,7 +317,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     summary = ingest_records(
-        manifest_path=args.manifest,
+        manifest_paths=args.manifest,
         collection_name=args.collection,
         model_name=args.model,
         device=args.device,
@@ -259,6 +329,9 @@ def main() -> int:
         recreate=args.recreate,
         host=args.host,
         port=args.port,
+        sample_per_class=args.sample_per_class,
+        sample_strategy=args.sample_strategy,
+        sample_seed=args.sample_seed,
         limit=args.limit,
     )
     print(json.dumps(summary, ensure_ascii=False, indent=2))

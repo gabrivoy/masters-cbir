@@ -25,8 +25,10 @@ The persisted canonical unit is the **raw bbox annotation**, not a padded crop.
 | Embedder | `mvp/extract.py` | Loads `OpenCLIP ViT-B/32`, derives runtime crops, and extracts normalized embeddings |
 | Milvus helper | `mvp/db.py` | Connects to Milvus, recreates collections, inserts rows, and performs vector search |
 | Ingestion pipeline | `mvp/ingest.py` | Reads the manifest, extracts embeddings, and inserts into Milvus with a producer-consumer flow |
+| Ranking evaluator | `mvp/evaluate.py` | Queries Milvus from held-out manifests and writes ranking/summary artifacts |
+| Deterministic sampler | `mvp/sampling.py` | Provides stratified per-class sampling by class, camera, and size bucket |
 | Visual inspection/search renderer | `mvp/visualize.py` | Renders bbox inspection and top-k search results outside the notebook |
-| Notebook | `mvp/notebook.ipynb` | Main exploratory surface for Epic 0 |
+| Notebook | `mvp/notebook.ipynb` | Loads evaluation artifacts and supports qualitative bbox inspection |
 | Tutorial | `mvp/HOWTOUSE.md` | Operational usage guide with copy-paste commands |
 
 ## MVP Scope
@@ -41,10 +43,11 @@ This MVP currently covers:
 - notebook-first inspection
 - script-based inspection and search rendering
 - smoke-test ingestion into the vector database
+- single-class similarity calibration (`exp01`)
+- first mixed-class discriminative benchmark (`exp02`)
 
 This MVP intentionally does **not** yet cover:
 
-- mixed-class benchmark collections as a default
 - UMAP/HDBSCAN clustering
 - detector-derived embeddings
 - API/CLI package structure in `cbir/`
@@ -64,6 +67,8 @@ This MVP intentionally does **not** yet cover:
 | Search metric | Cosine similarity over normalized vectors |
 | First inspection surface | Jupyter notebook |
 | First external UI | Attu |
+| First calibration experiment | `Traineira` train gallery -> `Traineira` test queries |
+| First discriminative experiment | `Traineira + Lancha / Iate` train gallery -> test queries |
 
 ## High-Level Architecture
 
@@ -76,8 +81,9 @@ flowchart TD
     E --> F["mvp/extract.py<br/>runtime crop + OpenCLIP embedding"]
     F --> G["mvp/ingest.py"]
     G --> H["Milvus"]
-    H --> I["mvp/visualize.py search"]
-    H --> J["mvp/notebook.ipynb"]
+    H --> I["mvp/evaluate.py<br/>ranking.csv + metrics"]
+    I --> J["mvp/notebook.ipynb"]
+    H --> M["mvp/visualize.py search"]
     E --> K["mvp/visualize.py inspect"]
     E --> J
     H --> L["Attu UI"]
@@ -109,8 +115,9 @@ flowchart TD
     A["1. Generate manifest<br/>mvp/data_prep.py"] --> B["2. Audit examples<br/>visualize.py inspect / notebook"]
     B --> C["3. Start infra<br/>docker compose up -d"]
     C --> D["4. Ingest embeddings<br/>mvp/ingest.py"]
-    D --> E["5. Query Milvus<br/>visualize.py search / notebook"]
-    E --> F["6. Review top-k neighbors<br/>Attu + notebook + PNG/HTML renders"]
+    D --> E["5. Evaluate rankings<br/>mvp/evaluate.py"]
+    E --> F["6. Review metrics<br/>CSV + JSON + PNG"]
+    F --> G["7. Inspect examples<br/>notebook / visualize.py"]
 ```
 
 ## Usage Paths
@@ -138,18 +145,20 @@ flowchart LR
     D --> E["visualize.py search"]
 ```
 
-### Path 3: Notebook-first exploration
+### Path 3: Evaluation-first exploration
 
-Use this when the goal is to iterate on examples, review splits, and inspect retrieval manually.
+Use this when the goal is to compare experiments with a reproducible protocol.
 
 ```mermaid
 flowchart LR
-    A["notebook.ipynb"] --> B["manifest generation"]
-    B --> C["bbox audit tables"]
-    C --> D["single-item inspection"]
-    D --> E["optional ingest"]
-    E --> F["optional top-k search"]
-    F --> G["early metrics"]
+    A["ingest.py<br/>train gallery"] --> B["Milvus collection"]
+    B --> C["evaluate.py<br/>test queries"]
+    C --> D["ranking.csv"]
+    C --> E["query_summary.csv"]
+    C --> F["summary.json + plots"]
+    D --> G["notebook.ipynb"]
+    E --> G
+    F --> G
 ```
 
 ## Manifest Artifacts
@@ -202,6 +211,54 @@ The ingestion pipeline is deliberately simple.
 
 This is parallel enough for a first local MVP without introducing multiprocessing complexity.
 
+The ingestion script now accepts repeated `--manifest` flags, so mixed-class collections can be created without merging files manually. When `--sample-per-class` is provided, the default strategy is deterministic stratified sampling by `target_class`, `camera_id`, and `size_bucket`.
+
+## Evaluation Protocol
+
+The evaluator uses a strict table grain:
+
+- one query bbox produces `top_k` retrieved hits;
+- `ranking.csv` has one row per retrieved hit;
+- `query_summary.csv` has one row per query;
+- `threshold_distribution.csv` aggregates score-threshold booleans by threshold, rank, query class, and hit class;
+- `top1_confusion.csv` stores the top-1 class confusion matrix;
+- `summary.json` records parameters, metrics, output paths, and leakage checks.
+
+```mermaid
+flowchart TD
+    A["Train manifests<br/>gallery split"] --> B["ingest.py"]
+    B --> C["Milvus collection"]
+    D["Test manifests<br/>query split"] --> E["evaluate.py"]
+    C --> E
+    E --> F["ranking.csv<br/>one row per hit"]
+    E --> G["query_summary.csv<br/>one row per query"]
+    E --> H["threshold_distribution.csv"]
+    E --> I["top1_confusion.csv"]
+    E --> J["summary.json + PNG plots"]
+```
+
+### Official MVP Experiments
+
+| Experiment | Gallery | Query | Purpose | Interpretation |
+| --- | --- | --- | --- | --- |
+| `exp01` | `Traineira`, `train`, `medium+` | `Traineira`, `test`, `medium+` | Intra-class calibration | Score distribution and threshold coverage only |
+| `exp02` | `Traineira + Lancha / Iate`, `train`, `medium+` | `Traineira + Lancha / Iate`, `test`, `medium+` | First discriminative benchmark | Class separation, precision@k, top-1 confusion, threshold precision/coverage |
+
+Perfect class-match metrics in `exp01` are structurally expected because every indexed item belongs to the same class. The useful signal in `exp01` is score distribution, not classification quality.
+
+For `exp02`, the key metrics are:
+
+- `top1_accuracy`
+- `precision_at_5`
+- `precision_at_10`
+- `precision_at_30`
+- `MRR`
+- `thresholded_precision`
+- `thresholded_coverage`
+- top-1 confusion matrix
+
+Leakage checks are written to `summary.json`. In official `train -> test` experiments, `remaining_self_hits` should be `0`.
+
 ## Milvus and Attu
 
 The root [docker-compose.yml](/Users/gabriel/_pgms/personal/cbir/docker-compose.yml) now provides:
@@ -237,6 +294,8 @@ The following has already been exercised successfully in this MVP:
 - vector search in Milvus
 - top-k search rendering to image
 - Docker Compose stack with Milvus and Attu
+- deterministic multiclass ingestion interface
+- ranking artifact interface for evaluation
 
 ## Practical Entry Points
 
@@ -251,15 +310,11 @@ If you want to use the MVP right now, start here:
 
 The MVP still has important limitations.
 
-### 1. The default retrieval collection is still single-class oriented
-
-The current first slice was optimized around `Traineira`. That is good for bringing up the pipeline, but it is not yet a strong discriminative benchmark across categories.
-
-### 2. Precision metrics are not yet very meaningful in a single-class collection
+### 1. Precision metrics are not meaningful in a single-class collection
 
 If all indexed vectors come from the same class, class-match precision becomes structurally trivial. A mixed-class collection is needed for a more informative retrieval evaluation.
 
-### 3. Clustering is not implemented yet
+### 2. Clustering is not implemented yet
 
 The roadmap already points toward:
 
@@ -268,11 +323,11 @@ The roadmap already points toward:
 
 That next step still needs to be added on top of the current embeddings.
 
-### 4. Detector-derived embeddings are still a later experiment
+### 3. Detector-derived embeddings are still a later experiment
 
 The current model is an external generic visual embedder. The comparison against embeddings derived from an in-house YOLO backbone still does not exist.
 
-### 5. The `cbir/` package architecture has not started yet
+### 4. The `cbir/` package architecture has not started yet
 
 This MVP is still standalone by design. It is not yet the structured project package described in the root roadmap.
 
@@ -280,8 +335,8 @@ This MVP is still standalone by design. It is not yet the structured project pac
 
 The main missing pieces, in priority order, are these:
 
-1. Build a **mixed-class collection** for a real retrieval benchmark.
-2. Add a **clean evaluation protocol** using query/gallery separation with meaningful `precision@k`.
+1. Run and inspect the full `exp02` benchmark after the smoke test.
+2. Decide whether `Lancha / Iate` is enough as the first negative class or whether `Rebocador` should be added next.
 3. Implement **UMAP + HDBSCAN** on the stored embeddings, class by class.
 4. Compare strong classes such as `Traineira`, `Rebocador`, `Lancha / Iate`, and `Navio de Carga Geral`.
 5. Test whether clustering behaves differently by **camera**.

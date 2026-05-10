@@ -132,12 +132,10 @@ device = "cpu"
 
 O notebook cobre:
 
-- geração do manifesto
 - auditoria por split, câmera e size bucket
-- inspeção de um item
-- ingestão opcional no Milvus
-- busca opcional no Milvus
-- métricas iniciais de retrieval
+- inspeção qualitativa de um item
+- leitura dos CSVs gerados por `mvp/evaluate.py`
+- comparação entre `exp01`, `exp02` e smoke tests
 
 ## 6. Fazer uma ingestão de smoke test
 
@@ -192,6 +190,8 @@ Notas:
 - use `--device cuda` se tiver GPU compatível
 - `--recreate` apaga e recria a collection
 - se quiser manter a collection existente, remova `--recreate`
+- o default do script agora é `--split train`
+- para múltiplas classes, repita `--manifest`
 
 ## 8. Consultar o Milvus pelo Attu
 
@@ -238,6 +238,176 @@ O render inclui:
 - `item_id`
 - `split`
 - `camera_id`
+
+## 10. Experimento 1: calibração intra-classe
+
+Este experimento mede a distribuição de similaridade `Traineira -> Traineira`.
+
+Ele **não** deve ser interpretado como classificação, porque a gallery contém só uma classe.
+
+Gerar ou atualizar o manifesto:
+
+```bash
+uv run python mvp/data_prep.py --target-class Traineira
+```
+
+Ingerir a gallery de treino:
+
+```bash
+uv run python mvp/ingest.py \
+  --manifest data/cbir/traineira/v1/manifest.jsonl \
+  --collection cbir_bbox_exp01_traineira_openclip_vit_b_32_openai_v1 \
+  --model openclip-vit-b-32 \
+  --device cpu \
+  --split train \
+  --benchmark-only \
+  --padding-ratio 0.0 \
+  --sample-per-class 1000 \
+  --sample-strategy stratified \
+  --sample-seed 42 \
+  --batch-size 32 \
+  --insert-batch-size 128 \
+  --recreate
+```
+
+Avaliar com queries de teste:
+
+```bash
+uv run python mvp/evaluate.py \
+  --collection cbir_bbox_exp01_traineira_openclip_vit_b_32_openai_v1 \
+  --query-manifest data/cbir/traineira/v1/manifest.jsonl \
+  --query-split test \
+  --benchmark-only \
+  --model openclip-vit-b-32 \
+  --device cpu \
+  --padding-ratio 0.0 \
+  --top-k 30 \
+  --thresholds 0.8 0.7 0.6 0.5 \
+  --output-dir artifacts/evaluation/exp01
+```
+
+Saídas principais:
+
+- `artifacts/evaluation/exp01/ranking.csv`
+- `artifacts/evaluation/exp01/query_summary.csv`
+- `artifacts/evaluation/exp01/threshold_distribution.csv`
+- `artifacts/evaluation/exp01/top1_confusion.csv`
+- `artifacts/evaluation/exp01/summary.json`
+- `artifacts/evaluation/exp01/*.png`
+
+## 11. Experimento 2: benchmark discriminativo
+
+Este é o primeiro benchmark com separação real entre classes.
+
+Classes:
+
+- `Traineira`
+- `Lancha / Iate`
+
+Gerar ou atualizar os manifests:
+
+```bash
+uv run python mvp/data_prep.py --target-class Traineira
+uv run python mvp/data_prep.py --target-class "Lancha / Iate"
+```
+
+Smoke test balanceado com 20 itens por classe:
+
+```bash
+uv run python mvp/ingest.py \
+  --manifest data/cbir/traineira/v1/manifest.jsonl \
+  --manifest data/cbir/lancha_iate/v1/manifest.jsonl \
+  --collection cbir_bbox_exp02_smoke_openclip_vit_b_32_openai_v1 \
+  --model openclip-vit-b-32 \
+  --device cpu \
+  --split train \
+  --benchmark-only \
+  --padding-ratio 0.0 \
+  --sample-per-class 20 \
+  --sample-strategy stratified \
+  --sample-seed 42 \
+  --batch-size 8 \
+  --insert-batch-size 20 \
+  --recreate
+```
+
+Avaliar o smoke test com 2 queries por classe:
+
+```bash
+uv run python mvp/evaluate.py \
+  --collection cbir_bbox_exp02_smoke_openclip_vit_b_32_openai_v1 \
+  --query-manifest data/cbir/traineira/v1/manifest.jsonl \
+  --query-manifest data/cbir/lancha_iate/v1/manifest.jsonl \
+  --query-split test \
+  --benchmark-only \
+  --model openclip-vit-b-32 \
+  --device cpu \
+  --padding-ratio 0.0 \
+  --top-k 5 \
+  --thresholds 0.8 0.7 0.6 0.5 \
+  --sample-per-class 2 \
+  --sample-strategy stratified \
+  --sample-seed 42 \
+  --batch-size 4 \
+  --output-dir artifacts/evaluation/exp02_smoke
+```
+
+Rodada maior do `exp02`:
+
+```bash
+uv run python mvp/ingest.py \
+  --manifest data/cbir/traineira/v1/manifest.jsonl \
+  --manifest data/cbir/lancha_iate/v1/manifest.jsonl \
+  --collection cbir_bbox_exp02_traineira_lancha_iate_openclip_vit_b_32_openai_v1 \
+  --model openclip-vit-b-32 \
+  --device cpu \
+  --split train \
+  --benchmark-only \
+  --padding-ratio 0.0 \
+  --sample-per-class 1000 \
+  --sample-strategy stratified \
+  --sample-seed 42 \
+  --batch-size 32 \
+  --insert-batch-size 128 \
+  --recreate
+```
+
+```bash
+uv run python mvp/evaluate.py \
+  --collection cbir_bbox_exp02_traineira_lancha_iate_openclip_vit_b_32_openai_v1 \
+  --query-manifest data/cbir/traineira/v1/manifest.jsonl \
+  --query-manifest data/cbir/lancha_iate/v1/manifest.jsonl \
+  --query-split test \
+  --benchmark-only \
+  --model openclip-vit-b-32 \
+  --device cpu \
+  --padding-ratio 0.0 \
+  --top-k 30 \
+  --thresholds 0.8 0.7 0.6 0.5 \
+  --output-dir artifacts/evaluation/exp02
+```
+
+Métricas importantes no `summary.json`:
+
+- `top1_accuracy`
+- `precision_at_5`
+- `precision_at_10`
+- `precision_at_30`
+- `mrr`
+- `thresholded_precision`
+- `thresholded_coverage`
+- `leakage_checks.remaining_self_hits`
+
+## 12. Como interpretar métricas perfeitas
+
+Métricas perfeitas em uma collection com uma classe só são esperadas e não provam que o embedding classifica bem.
+
+Interpretação correta:
+
+- `exp01` mede calibração intra-classe e distribuição de scores.
+- `exp02` mede separação entre classes usando gallery de treino e query de teste.
+- se `remaining_self_hits` for maior que zero, o protocolo está contaminado.
+- se `same_image_filename_hits` aparecer em `train -> test`, vale investigar possível redundância temporal ou duplicação de frames.
 - `size_bucket`
 
 ## 10. Fluxo recomendado do zero
