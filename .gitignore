@@ -18,8 +18,9 @@ wheels/
 /data/
 /artifacts/
 
-# Legacy proof-of-concept manifests (kept out of git).
-archive/mvp/manifests/*.jsonl
+# Archived proof-of-concept and historical docs: kept locally, out of the
+# public repository.
+archive/
 
 # Jupyter
 .ipynb_checkpoints/
