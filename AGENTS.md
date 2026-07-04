@@ -1,33 +1,55 @@
 # AGENTS.md
 
-This file provides guidance to agentic coding tools like Claude Code, Codex, Copilot and OpenCode when working with code in this repository.
+Guidance for agentic coding tools (Claude Code, Codex, Copilot, OpenCode) working in this repository.
 
-## Project
+## What this is
 
-CBIR (Content-Based Image Retrieval) system for a master's thesis (TecGraf PUC / Embraer). Domain: vessel images from cameras monitoring Guanabara Bay. Goal: given an image of class A, verify it clusters near other class-A images in vector space. Dataset: ~4M images extracted from camera feeds (multi-distance, variable resolution), ~200K hand-labeled with class imbalance across vessel types. The system supports experimentation with different embedding models and similarity search algorithms, enabling heuristics for automatic labeling to augment the dataset and improve downstream segmentation models.
+A Content-Based Image Retrieval (CBIR) system for vessel bounding-box crops
+(TecGraf PUC / Embraer; images from cameras over Guanabara Bay). It indexes
+image embeddings into Milvus and lets you explore the vector space: project the
+gallery to 2D/3D with PCA, drop in a query image, and see which class a KNN vote
+over its nearest neighbours would assign it — the retrieval-based auto-labeling
+idea, made visual.
 
-## Development Environment
+The central guarantee: **a query is always embedded with the same model that
+built the collection it is searched against.** The model is recorded on the
+Milvus collection at index time and enforced by the service layer.
 
-- Python 3.13, managed via `.python-version`
-- `uv` as package manager
-- Run: `uv run main.py`
-- Add dependencies: `uv add <package>`
-- Lint: `ruff`
-- Type check: `mypy`
-- Test: `pytest`
+## Architecture (three tiers, cleanly separated)
 
-## Architecture
+- **Backend** (`cbir/core`, `cbir/index`, `cbir/viz`, `cbir/knn.py`,
+  `cbir/service.py`) — manifests, OpenCLIP extraction, Milvus access, PCA
+  projection, KNN prediction, and the orchestrating service.
+- **API** (`cbir/api`) — a thin FastAPI layer over the service.
+- **Frontend** (`cbir/app`) — a Streamlit app that talks *only* to the API.
 
-- **Feature extraction**: pluggable models (ResNet, VGG, ViT, etc.) via PyTorch
-- **Vector database**: Milvus for storing/searching embeddings
-- **API**: FastAPI for programmatic access
-- **CLI**: Typer for command-line interaction
-- **Dashboard**: Streamlit for visualizing vector space and search results
-- **Experiment tracking**: MLflow
+Shared data contracts live in `cbir/models.py` (Pydantic v2). Structured
+logging (stdlib `logging`, wide events) lives in `cbir/observability.py`.
 
-## Deployment
+## Development
 
-Docker Compose with two profiles:
+- Python 3.13, managed with `uv`.
+- Run commands: `uv run cbir --help` (subcommands: `sample`, `index`, `export`,
+  `seed`, `api`, `app`).
+- Lint: `uv run ruff check cbir/ tests/`
+- Type check: `uv run mypy cbir/`
+- Test: `uv run pytest`
 
-- **Experimentation**: all dev dependencies, MLflow tracking, CLI/API/dashboard
-- **Execution**: minimal dependencies, API/CLI only
+All three must stay green. The BE core is pure and unit-tested without Milvus or
+torch; the API is tested with a fake service.
+
+## Conventions
+
+- Pydantic v2 for data models (not dataclasses).
+- Wide-event logging: one structured log line per operation (`log_event` /
+  `timed_event`), not many fragmented lines.
+- Device resolution is `auto` by default (CUDA → Apple MPS → multi-thread CPU).
+- Keep the backend simple and linear; no premature threading.
+
+## Boundaries
+
+- `archive/mvp/` is a frozen proof-of-concept. **Never import from it.**
+- `archive/docs/` and `ROADMAP.md` are historical reference only.
+- `data/` (the ~33 GB image pool) and `artifacts/` are never committed. The
+  runnable demo lives in `cbir/sample_data/` (crops + manifest + a precomputed
+  embeddings Parquet).
