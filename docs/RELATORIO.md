@@ -16,7 +16,7 @@
 
 Recuperação de imagens por conteúdo (do inglês *Content-Based Image Retrieval*,
 CBIR) é a tarefa de buscar imagens semelhantes a uma imagem de consulta usando o
-*próprio conteúdo visual*, e não texto, etiquetas ou metadados associados. A
+*próprio conteúdo visual*, e não texto, etiquetas ou metadados associados [1]. A
 ideia central: converter cada imagem em um vetor numérico (um *embedding*) que
 captura suas características visuais, de modo que imagens parecidas fiquem
 próximas em um espaço vetorial e imagens diferentes fiquem distantes. A busca
@@ -36,7 +36,7 @@ Isso é importante por várias razões práticas e de pesquisa:
 O desafio central da área é obter representações (embeddings) que capturem
 semelhança *semântica*, e não apenas semelhança de pixels: duas fotos do mesmo
 objeto sob ângulos ou iluminações diferentes devem ficar próximas. Modelos
-modernos de visão (como CLIP) produzem embeddings genéricos fortes, e uma parte
+modernos de visão (como CLIP) [2] produzem embeddings genéricos fortes, e uma parte
 importante da pesquisa em CBIR é justamente medir o quão confiáveis esses
 embeddings são para uma tarefa concreta. Este programa serve exatamente a esse
 propósito: tornar visível e mensurável o comportamento de recuperação.
@@ -50,7 +50,7 @@ de imagens por conteúdo. O programa indexa *embeddings* de imagem em um banco d
 dados vetorial e permite **explorar visualmente o espaço de representação**:
 projeta a galeria indexada em 2D/3D via PCA, aceita uma imagem de consulta, e
 mostra onde ela se posiciona em relação aos aglomerados (clusters) de cada
-classe. Além disso, prevê por votação K-Nearest-Neighbors (KNN) sobre os
+classe. Além disso, prevê por votação K-Nearest-Neighbors (KNN) [3] sobre os
 vizinhos recuperados a que classe a imagem consultada pertenceria, com um grau
 de confiança.
 
@@ -329,7 +329,36 @@ sequenceDiagram
     FE->>FE: destaca consulta + vizinhos, mostra predição
 ```
 
+### Fundamentos: PCA e redução de dimensionalidade
+
+Cada *embedding* produzido pelo modelo é um vetor de alta dimensão (no caso do
+OpenCLIP ViT-B/32, 512 dimensões). Esse espaço é o que permite medir semelhança
+com precisão, mas é **impossível de visualizar diretamente**: não há como
+desenhar um ponto em 512 eixos. Para inspecionar o espaço a olho nu precisamos
+projetá-lo em 2 ou 3 dimensões, aceitando que *parte da informação será perdida*
+nessa compressão. É um compromisso consciente: trocamos fidelidade por
+interpretabilidade visual.
+
+A Análise de Componentes Principais (PCA) [4] faz essa redução buscando as
+direções de *maior variância* dos dados. Dada uma matriz `X` (n embeddings
+centrados, com média zero), a PCA calcula a matriz de covariância
+`C = (1/n) Xᵀ X` e resolve seu problema de autovalores `C·vᵢ = λᵢ·vᵢ`. Os
+autovetores `vᵢ` (componentes principais) são ortogonais e ordenados pelos
+autovalores `λᵢ`, que medem quanta variância cada direção captura. Para
+visualizar em `k` dimensões (`k = 2` ou `3`), tomamos os `k` autovetores de
+maior autovalor, formando `Wₖ`, e projetamos `Z = X·Wₖ`. A fração de variância
+preservada é `(λ₁ + ... + λₖ) / (λ₁ + ... + λ_d)`; o relatório da interface
+mostra esse valor para deixar explícito o quanto foi perdido. Por ser uma
+transformação *linear*, a PCA projeta uma imagem de consulta nova no mesmo
+espaço com a mesma multiplicação `z = x·Wₖ`, o que é a propriedade essencial
+para posicionar a consulta em relação aos aglomerados existentes.
+
 ### Por que PCA (e não t-SNE/UMAP) para a projeção
+
+A projeção usa Análise de Componentes Principais (PCA) [4], uma redução linear
+de dimensionalidade. A alternativa seriam métodos não lineares como o t-SNE [5]
+ou o UMAP [6], mas eles não oferecem uma transformação exata para projetar um
+ponto novo (a consulta) no mesmo espaço da galeria já ajustada.
 
 | Critério | PCA | t-SNE / UMAP |
 | --- | --- | --- |
@@ -414,11 +443,11 @@ As principais tecnologias empregadas, com uma breve explicação de cada uma:
 
 - **Python 3.13** com **uv**: linguagem do projeto e gerenciador de
   dependências/ambientes (rápido, com *lockfile* reproduzível).
-- **OpenCLIP**: implementação aberta do modelo CLIP, que converte uma imagem em
+- **OpenCLIP** [7]: implementação aberta do modelo CLIP, que converte uma imagem em
   um vetor (*embedding*) que captura seu conteúdo visual.
-- **Milvus**: banco de dados vetorial, especializado em armazenar *embeddings* e
+- **Milvus** [8]: banco de dados vetorial, especializado em armazenar *embeddings* e
   fazer busca por vizinhos mais próximos em larga escala.
-- **scikit-learn (PCA)**: biblioteca de *machine learning*; usamos o PCA para
+- **scikit-learn (PCA)** [9]: biblioteca de *machine learning*; usamos o PCA para
   reduzir os vetores a 2D/3D preservando as direções de maior variância.
 - **FastAPI**: *framework* web para APIs em Python, com validação e documentação
   automáticas; expõe o *backend* via HTTP.
@@ -601,3 +630,17 @@ O sistema foi validado de ponta a ponta na máquina de desenvolvimento
 | Reconstrução via cache (`seed`) | Coleção recriada em ~3 s sem modelo/GPU |
 
 _Data: [preencher]. Repositório: `cbir/`._
+
+---
+
+## Referências
+
+1. Smeulders et al. "Content-Based Image Retrieval at the End of the Early Years." IEEE TPAMI 22(12), 2000. DOI:[10.1109/34.895972](https://doi.org/10.1109/34.895972)
+2. Radford et al. "Learning Transferable Visual Models From Natural Language Supervision." ICML 2021.
+3. Cover & Hart. "Nearest Neighbor Pattern Classification." IEEE Trans. Information Theory 13(1), 1967. DOI:[10.1109/TIT.1967.1053964](https://doi.org/10.1109/TIT.1967.1053964)
+4. Jolliffe. "Principal Component Analysis." 2nd ed., Springer, 2002.
+5. van der Maaten & Hinton. "Visualizing Data using t-SNE." JMLR 9, 2008.
+6. McInnes, Healy & Melville. "UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction." [arXiv:1802.03426](https://arxiv.org/abs/1802.03426), 2018.
+7. Ilharco et al. "OpenCLIP." 2021. DOI:[10.5281/zenodo.5143773](https://doi.org/10.5281/zenodo.5143773). <https://github.com/mlfoundations/open_clip>
+8. Wang et al. "Milvus: A Purpose-Built Vector Data Management System." SIGMOD 2021. DOI:[10.1145/3448016.3457550](https://doi.org/10.1145/3448016.3457550)
+9. Pedregosa et al. "Scikit-learn: Machine Learning in Python." JMLR 12, 2011.

@@ -1,119 +1,108 @@
 %=============================================================================
-% ARQUIVO DE REFERÊNCIAS BIBLIOGRÁFICAS
-% Template DI PUC-Rio - references.bib
-%
-% INSTRUÇÕES:
-% - Adicione aqui suas referências no formato BibTeX
-% - Use chaves descritivas e consistentes (autor_ano_palavra-chave)
-% - Mantenha a formatação organizada e consistente
-% - Verifique sempre a integridade dos dados bibliográficos
+% Referências bibliográficas
+% Explorador de Espaço Vetorial para Imagens (INF2102, DI PUC-Rio)
 %=============================================================================
 
-%=============================================================================
-% EXEMPLOS DE TIPOS DE REFERÊNCIAS
-%=============================================================================
+% Recuperação de imagens por conteúdo (CBIR): survey clássico da área.
+@article{smeulders2000cbir,
+    author  = {Smeulders, Arnold W. M. and Worring, Marcel and Santini, Simone
+               and Gupta, Amarnath and Jain, Ramesh},
+    title   = {Content-Based Image Retrieval at the End of the Early Years},
+    journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+    year    = {2000},
+    volume  = {22},
+    number  = {12},
+    pages   = {1349--1380},
+    doi     = {10.1109/34.895972}
+}
 
-% -----------------------------------------------------------------------------
-% ARTIGO EM PERIÓDICO
-% -----------------------------------------------------------------------------
-% @article{silva2024exemplo,
-%     author    = {Silva, João and Santos, Maria},
-%     title     = {Exemplo de Artigo Científico},
-%     journal   = {Revista Brasileira de Informática},
-%     year      = {2024},
-%     volume    = {15},
-%     number    = {2},
-%     pages     = {10--25},
-%     doi       = {10.1000/exemplo},
-%     issn      = {1234-5678}
-% }
+% CLIP: modelo que aprende representações visuais alinhadas a linguagem.
+@inproceedings{radford2021clip,
+    author    = {Radford, Alec and Kim, Jong Wook and Hallacy, Chris and
+                 Ramesh, Aditya and Goh, Gabriel and Agarwal, Sandhini and
+                 Sastry, Girish and Askell, Amanda and Mishkin, Pamela and
+                 Clark, Jack and Krueger, Gretchen and Sutskever, Ilya},
+    title     = {Learning Transferable Visual Models From Natural Language Supervision},
+    booktitle = {Proceedings of the 38th International Conference on Machine Learning (ICML)},
+    year      = {2021},
+    pages     = {8748--8763}
+}
 
-% -----------------------------------------------------------------------------
-% LIVRO
-% -----------------------------------------------------------------------------
-% @book{autor2023livro,
-%     author    = {Autor, Nome},
-%     title     = {Título do Livro},
-%     publisher = {Editora},
-%     year      = {2023},
-%     address   = {Cidade},
-%     edition   = {2},
-%     isbn      = {978-85-123-4567-8}
-% }
+% OpenCLIP: implementação aberta e reprodutível do CLIP (usada neste projeto).
+@misc{ilharco2021openclip,
+    author = {Ilharco, Gabriel and Wortsman, Mitchell and Wightman, Ross and
+              Gordon, Cade and Carlini, Nicholas and Taori, Rohan and
+              Dave, Achal and Shankar, Vaishaal and Namkoong, Hongseok and
+              Miller, John and Hajishirzi, Hannaneh and Farhadi, Ali and
+              Schmidt, Ludwig},
+    title  = {OpenCLIP},
+    year   = {2021},
+    doi    = {10.5281/zenodo.5143773},
+    note   = {Disponível em: \url{https://github.com/mlfoundations/open_clip}}
+}
 
-% -----------------------------------------------------------------------------
-% ARTIGO EM CONFERÊNCIA
-% -----------------------------------------------------------------------------
-% @inproceedings{conference2024,
-%     author    = {Primeiro, Autor and Segundo, Autor},
-%     title     = {Título do Artigo na Conferência},
-%     booktitle = {Proceedings of the Conference Name},
-%     year      = {2024},
-%     pages     = {123--130},
-%     address   = {Local da Conferência},
-%     publisher = {IEEE},
-%     doi       = {10.1109/exemplo.2024}
-% }
+% Milvus: banco de dados vetorial usado para armazenar e buscar embeddings.
+@inproceedings{wang2021milvus,
+    author    = {Wang, Jianguo and Yi, Xiaomeng and Guo, Rentong and Jin, Hai
+                 and Xu, Peng and Li, Shengjun and Wang, Xiangyu and Guo, Xiangzhou
+                 and Li, Chengming and Xu, Xiaohai and others},
+    title     = {Milvus: A Purpose-Built Vector Data Management System},
+    booktitle = {Proceedings of the 2021 International Conference on Management of Data (SIGMOD)},
+    year      = {2021},
+    pages     = {2614--2627},
+    doi       = {10.1145/3448016.3457550}
+}
 
-% -----------------------------------------------------------------------------
-% CAPÍTULO DE LIVRO
-% -----------------------------------------------------------------------------
-% @incollection{autor2024capitulo,
-%     author    = {Autor, Nome},
-%     title     = {Título do Capítulo},
-%     booktitle = {Título do Livro},
-%     editor    = {Editor, Nome},
-%     publisher = {Editora},
-%     year      = {2024},
-%     pages     = {45--67},
-%     chapter   = {3}
-% }
+% PCA: redução de dimensionalidade usada na projeção 2D/3D.
+@book{jolliffe2002pca,
+    author    = {Jolliffe, Ian T.},
+    title     = {Principal Component Analysis},
+    publisher = {Springer},
+    year      = {2002},
+    edition   = {2},
+    address   = {New York},
+    doi       = {10.1007/b98835}
+}
 
-% -----------------------------------------------------------------------------
-% TESE OU DISSERTAÇÃO
-% -----------------------------------------------------------------------------
-% @phdthesis{silva2023tese,
-%     author  = {Silva, João},
-%     title   = {Título da Tese},
-%     school  = {Pontifícia Universidade Católica do Rio de Janeiro},
-%     year    = {2023},
-%     address = {Rio de Janeiro},
-%     type    = {Tese de Doutorado}
-% }
+% KNN: regra de classificação por vizinhos mais próximos (base da heurística de voto).
+@article{cover1967knn,
+    author  = {Cover, Thomas M. and Hart, Peter E.},
+    title   = {Nearest Neighbor Pattern Classification},
+    journal = {IEEE Transactions on Information Theory},
+    year    = {1967},
+    volume  = {13},
+    number  = {1},
+    pages   = {21--27},
+    doi     = {10.1109/TIT.1967.1053964}
+}
 
-% @mastersthesis{santos2023dissertacao,
-%     author  = {Santos, Maria},
-%     title   = {Título da Dissertação},
-%     school  = {Pontifícia Universidade Católica do Rio de Janeiro},
-%     year    = {2023},
-%     address = {Rio de Janeiro}
-% }
+% t-SNE: método não linear citado para justificar a escolha do PCA.
+@article{vandermaaten2008tsne,
+    author  = {van der Maaten, Laurens and Hinton, Geoffrey},
+    title   = {Visualizing Data using t-SNE},
+    journal = {Journal of Machine Learning Research},
+    year    = {2008},
+    volume  = {9},
+    pages   = {2579--2605}
+}
 
-% -----------------------------------------------------------------------------
-% RECURSO ONLINE / WEBSITE
-% -----------------------------------------------------------------------------
-% @misc{website2024,
-%     author       = {Organização},
-%     title        = {Título da Página Web},
-%     howpublished = {\url{https://exemplo.com}},
-%     year         = {2024},
-%     note         = {Acesso em: 01 jan. 2024}
-% }
+% UMAP: método não linear citado para justificar a escolha do PCA.
+@article{mcinnes2018umap,
+    author  = {McInnes, Leland and Healy, John and Melville, James},
+    title   = {{UMAP}: Uniform Manifold Approximation and Projection for Dimension Reduction},
+    journal = {arXiv preprint arXiv:1802.03426},
+    year    = {2018}
+}
 
-% -----------------------------------------------------------------------------
-% MANUAL TÉCNICO
-% -----------------------------------------------------------------------------
-% @manual{manual2024,
-%     title        = {Manual do Usuário},
-%     author       = {Empresa},
-%     organization = {Nome da Organização},
-%     edition      = {v2.1},
-%     year         = {2024},
-%     note         = {Disponível em: \url{https://exemplo.com/manual}}
-% }
-
-%=============================================================================
-% SUAS REFERÊNCIAS COMEÇAM AQUI
-%=============================================================================
-
-% Adicione suas referências bibliográficas abaixo desta linha
+% scikit-learn: biblioteca que fornece a implementação de PCA usada.
+@article{pedregosa2011scikit,
+    author  = {Pedregosa, Fabian and Varoquaux, Ga{\"e}l and Gramfort, Alexandre
+               and Michel, Vincent and Thirion, Bertrand and Grisel, Olivier
+               and Blondel, Mathieu and Prettenhofer, Peter and Weiss, Ron and
+               Dubourg, Vincent and others},
+    title   = {Scikit-learn: Machine Learning in {P}ython},
+    journal = {Journal of Machine Learning Research},
+    year    = {2011},
+    volume  = {12},
+    pages   = {2825--2830}
+}

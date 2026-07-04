@@ -32,6 +32,14 @@
 \usepackage[colorlinks=true,plainpages=true,citecolor=blue,linkcolor=blue,urlcolor=blue]{hyperref}
 
 %=============================================================================
+% BIBLIOGRAFIA
+%=============================================================================
+
+\usepackage[backend=bibtex,style=numeric,sorting=none]{biblatex}
+\addbibresource{bib/references.bib}
+\DefineBibliographyStrings{portuguese}{bibliography = {Referências}}
+
+%=============================================================================
 % CABEÇALHO E RODAPÉ
 %=============================================================================
 
@@ -119,11 +127,11 @@
 Recuperação de imagens por conteúdo (do inglês \emph{Content-Based Image
 Retrieval}, CBIR) é a tarefa de buscar imagens semelhantes a uma imagem de
 consulta usando o próprio conteúdo visual, e não texto, etiquetas ou metadados
-associados. A ideia central: converter cada imagem em um vetor numérico (um
-\emph{embedding}) que captura suas características visuais, de modo que imagens
-parecidas fiquem próximas em um espaço vetorial e imagens diferentes fiquem
-distantes. A busca por semelhança vira, então, uma busca por vizinhos mais
-próximos nesse espaço.
+associados~\cite{smeulders2000cbir}. A ideia central: converter cada imagem em
+um vetor numérico (um \emph{embedding}) que captura suas características visuais,
+de modo que imagens parecidas fiquem próximas em um espaço vetorial e imagens
+diferentes fiquem distantes. A busca por semelhança vira, então, uma busca por
+vizinhos mais próximos nesse espaço.
 
 Isso é importante por várias razões práticas e de pesquisa:
 
@@ -141,10 +149,10 @@ Isso é importante por várias razões práticas e de pesquisa:
 O desafio central da área é obter representações que capturem semelhança
 \emph{semântica}, e não apenas semelhança de pixels: duas fotos do mesmo objeto
 sob ângulos ou iluminações diferentes devem ficar próximas. Modelos modernos de
-visão (como CLIP) produzem embeddings genéricos fortes, e uma parte importante
-da pesquisa em CBIR é justamente medir o quão confiáveis esses embeddings são
-para uma tarefa concreta. Este programa serve exatamente a esse propósito:
-tornar visível e mensurável o comportamento de recuperação.
+visão como o CLIP~\cite{radford2021clip} produzem embeddings genéricos fortes, e
+uma parte importante da pesquisa em CBIR é justamente medir o quão confiáveis
+esses embeddings são para uma tarefa concreta. Este programa serve exatamente a
+esse propósito: tornar visível e mensurável o comportamento de recuperação.
 
 \medskip
 \noindent\textbf{Estudo de caso e dados de exemplo.} O sistema é genérico e
@@ -161,8 +169,9 @@ imagem em um banco de dados vetorial e permite \textbf{explorar visualmente o
 espaço de representação}: projeta a galeria indexada em 2D/3D via PCA, aceita
 uma imagem de consulta, e mostra onde ela se posiciona em relação aos
 aglomerados (\emph{clusters}) de cada classe. Além disso, prevê por votação
-\emph{K-Nearest Neighbors} (KNN) sobre os vizinhos recuperados a que classe a
-imagem consultada pertenceria, com um grau de confiança.
+\emph{K-Nearest Neighbors} (KNN)~\cite{cover1967knn} sobre os vizinhos
+recuperados a que classe a imagem consultada pertenceria, com um grau de
+confiança.
 
 \subsection*{Principais funções}
 
@@ -318,7 +327,7 @@ exatamente o que o \emph{frontend} precisa:
 
 \begin{table}[H]
 \centering
-\begin{tabular}{@{}p{4cm}p{10cm}@{}}
+\begin{tabular}{@{}p{5.4cm}p{8.6cm}@{}}
 \toprule
 \textbf{Campo} & \textbf{Uso} \\
 \midrule
@@ -357,7 +366,50 @@ no mesmo PCA da galeria e vota a classe.
   \label{fig:flow-query}
 \end{figure}
 
+\subsection{Fundamentos: PCA e redução de dimensionalidade}
+
+Cada \emph{embedding} produzido pelo modelo é um vetor de alta dimensão (no caso
+do OpenCLIP ViT-B/32, $d = 512$ dimensões). Esse espaço é o que permite medir
+semelhança com precisão, mas é \textbf{impossível de visualizar diretamente}:
+não há como desenhar um ponto em 512 eixos. Para inspecionar o espaço a olho nu
+precisamos projetá-lo em 2 ou 3 dimensões, aceitando que \emph{parte da
+informação será perdida} nessa compressão. É um compromisso consciente: trocamos
+fidelidade por interpretabilidade visual.
+
+A Análise de Componentes Principais (PCA)~\cite{jolliffe2002pca} faz essa
+redução buscando as direções de \emph{maior variância} dos dados. Dada uma
+matriz $X \in \mathbb{R}^{n \times d}$ com $n$ embeddings centrados (média zero),
+a PCA calcula a matriz de covariância
+
+\[
+  C = \frac{1}{n} X^\top X \in \mathbb{R}^{d \times d},
+\]
+
+e resolve seu problema de autovalores $C v_i = \lambda_i v_i$. Os autovetores
+$v_i$ (componentes principais) são ortogonais e ordenados pelos autovalores
+$\lambda_i$, que medem quanta variância cada direção captura. Para visualizar em
+$k$ dimensões ($k = 2$ ou $3$), tomamos os $k$ autovetores de maior autovalor,
+formando $W_k = [\,v_1\ \cdots\ v_k\,] \in \mathbb{R}^{d \times k}$, e projetamos
+
+\[
+  Z = X\,W_k \in \mathbb{R}^{n \times k}.
+\]
+
+A fração de variância preservada é $\sum_{i=1}^{k} \lambda_i \big/
+\sum_{j=1}^{d} \lambda_j$; o relatório da interface mostra esse valor para deixar
+explícito o quanto foi perdido. Por ser uma transformação \emph{linear} (a
+matriz $W_k$ ajustada na galeria), a PCA projeta uma imagem de consulta nova no
+mesmo espaço com a mesma multiplicação $z = x\,W_k$, o que é a propriedade
+essencial para posicionar a consulta em relação aos aglomerados existentes.
+
 \subsection{Por que PCA (e não t-SNE/UMAP)}
+
+A projeção usa Análise de Componentes Principais
+(PCA)~\cite{jolliffe2002pca}, uma redução linear de dimensionalidade. A
+alternativa seriam métodos não lineares como o t-SNE~\cite{vandermaaten2008tsne}
+ou o UMAP~\cite{mcinnes2018umap}, mas eles não oferecem uma transformação exata
+para projetar um ponto novo (a consulta) no mesmo espaço da galeria já ajustada.
+A Tabela~\ref{tab:pca} resume a comparação.
 
 \begin{table}[H]
 \centering
@@ -372,6 +424,7 @@ Preserva distâncias globais & Sim (linear) & Foco em estrutura local \\
 \bottomrule
 \end{tabular}
 \caption{Justificativa da escolha de PCA para a projeção.}
+\label{tab:pca}
 \end{table}
 
 A escolha de PCA é o que torna correta a pergunta central do programa:
@@ -433,12 +486,15 @@ As principais tecnologias empregadas, com uma breve explicação de cada uma:
 \begin{itemize}
   \item \textbf{Python 3.13} com \textbf{uv}: linguagem do projeto e gerenciador
   de dependências/ambientes (rápido, com \emph{lockfile} reproduzível).
-  \item \textbf{OpenCLIP}: implementação aberta do modelo CLIP, que converte uma
-  imagem em um vetor (\emph{embedding}) que captura seu conteúdo visual.
-  \item \textbf{Milvus}: banco de dados vetorial, especializado em armazenar
-  \emph{embeddings} e fazer busca por vizinhos mais próximos em larga escala.
-  \item \textbf{scikit-learn (PCA)}: biblioteca de \emph{machine learning}; usamos
-  o PCA para reduzir os vetores a 2D/3D preservando as direções de maior variância.
+  \item \textbf{OpenCLIP}~\cite{ilharco2021openclip}: implementação aberta do
+  modelo CLIP, que converte uma imagem em um vetor (\emph{embedding}) que captura
+  seu conteúdo visual.
+  \item \textbf{Milvus}~\cite{wang2021milvus}: banco de dados vetorial,
+  especializado em armazenar \emph{embeddings} e fazer busca por vizinhos mais
+  próximos em larga escala.
+  \item \textbf{scikit-learn (PCA)}~\cite{pedregosa2011scikit}: biblioteca de
+  \emph{machine learning}; usamos o PCA para reduzir os vetores a 2D/3D
+  preservando as direções de maior variância.
   \item \textbf{FastAPI}: \emph{framework} web para APIs em Python, com validação
   e documentação automáticas; expõe o \emph{backend} via HTTP.
   \item \textbf{Streamlit} com \textbf{Plotly}: Streamlit constrói a interface web
@@ -644,5 +700,7 @@ trabalhos futuros, destacam-se: (i) a comparação sistemática entre modelos de
 treinado no domínio; e (iii) a avaliação quantitativa da confiabilidade dos
 limiares de similaridade para rotulagem automática, que é o objeto da
 dissertação.
+
+\printbibliography
 
 \end{document}
