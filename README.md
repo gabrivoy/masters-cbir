@@ -14,6 +14,8 @@ It is built for researchers who want to *see*, not just measure, whether their
 retrieval and classification are behaving: does a query land inside the right
 cluster, and do its nearest neighbours agree on its class?
 
+![The Vector-Space Explorer: a query crop projected into the gallery's PCA space, its nearest neighbours highlighted, and the KNN class prediction on the right.](docs/04_2d_results.png)
+
 > **Case study.** The system is generic and works with any image. The committed
 > sample data comes from a maritime-surveillance project (TecGraf PUC-Rio /
 > Embraer) that monitors vessels in Guanabara Bay, but nothing in the system is

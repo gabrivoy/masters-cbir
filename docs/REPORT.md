@@ -346,7 +346,10 @@ variance preserved is `(λ₁ + ... + λₖ) / (λ₁ + ... + λ_d)`; the interf
 shows this value to make explicit how much was lost. Being a *linear*
 transformation, PCA projects a new query image into the same space with the same
 multiplication `z = x·Wₖ`, which is the essential property for positioning the
-query relative to the existing clusters.
+query relative to the existing clusters. The geometric intuition in two
+dimensions: the first principal component (`v₁`) points in the direction of
+greatest spread of the data, and the second (`v₂`), orthogonal to it, in the
+direction of greatest remaining variance.
 
 ### Why PCA (and not t-SNE/UMAP) for the projection
 
@@ -635,6 +638,32 @@ the gallery before plotting. These are expected limits of the rendering approach
 not measurements of this project, and remain natural future work.
 
 _Date: _[to fill in]_ (repository: `cbir/`)._
+
+---
+
+## Demonstration
+
+This section shows the interface in use, captured over the sample collection (`cbir_sample`, 160 crops from 4 vessel classes).
+
+The home screen shows the gallery projected to 2D with PCA and coloured by class, with the controls sidebar and the cumulative explained variance shown at the top.
+
+![Home screen: 2D projection of the gallery, coloured by class.](01_user_interface_when_open_app.png)
+
+The controls panel lets you select the collection (with its associated embedding model), the 2D/3D projection, the number of neighbours k, and the similarity-weighted vote.
+
+![Controls panel, with the collection and its embedding model.](02_side_bar_collection_projection_etc_options.png)
+
+When you upload a query image, the tool projects it into the same space (red diamond), highlights the retrieved neighbours (yellow), and predicts the class by KNN vote. Below, the query (a Traineira crop) lands near other fishing boats, the prediction panel reports Traineira with 70% confidence, and the bottom strip lists the ten nearest neighbours with their scores.
+
+![Query in 2D: highlighted query, neighbours, KNN prediction, and the gallery of the ten nearest neighbours.](04_2d_results.png)
+
+The same query in the 3D projection:
+
+![The same query in the 3D projection.](05_3d_results.png)
+
+The API exposes interactive documentation generated automatically by FastAPI, with all endpoints and the data schemas derived from the Pydantic models.
+
+![Interactive API documentation (FastAPI / OpenAPI).](image_fastapi_docs.png)
 
 ---
 

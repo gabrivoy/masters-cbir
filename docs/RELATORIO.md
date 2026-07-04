@@ -351,7 +351,10 @@ preservada é `(λ₁ + ... + λₖ) / (λ₁ + ... + λ_d)`; o relatório da in
 mostra esse valor para deixar explícito o quanto foi perdido. Por ser uma
 transformação *linear*, a PCA projeta uma imagem de consulta nova no mesmo
 espaço com a mesma multiplicação `z = x·Wₖ`, o que é a propriedade essencial
-para posicionar a consulta em relação aos aglomerados existentes.
+para posicionar a consulta em relação aos aglomerados existentes. A ideia
+geométrica em duas dimensões: a primeira componente principal (`v₁`) aponta na
+direção de maior espalhamento dos dados, e a segunda (`v₂`), ortogonal, na
+direção de maior variância restante.
 
 ### Por que PCA (e não t-SNE/UMAP) para a projeção
 
@@ -640,6 +643,32 @@ esperados da abordagem de renderização, não medições deste projeto, e ficam
 trabalho futuro natural.
 
 _Data: [preencher]. Repositório: `cbir/`._
+
+---
+
+## Demonstração
+
+Esta seção mostra a interface em uso, capturada sobre a coleção de amostra (`cbir_sample`, 160 recortes de 4 classes de embarcações).
+
+A tela inicial mostra a galeria projetada em 2D por PCA e colorida por classe, com o painel lateral de controles e a variância explicada acumulada no topo.
+
+![Tela inicial: projeção 2D da galeria, colorida por classe.](01_user_interface_when_open_app.png)
+
+O painel de controles permite selecionar a coleção (com o modelo de embedding associado), a projeção 2D/3D, o número de vizinhos k e o voto ponderado por similaridade.
+
+![Painel de controles, com a coleção e seu modelo de embedding.](02_side_bar_collection_projection_etc_options.png)
+
+Ao enviar uma imagem de consulta, a ferramenta a projeta no mesmo espaço (losango vermelho), destaca os vizinhos recuperados (amarelo) e prevê a classe por voto KNN. Abaixo, a consulta (um recorte de Traineira) cai perto de outras traineiras, o painel de predição reporta Traineira com 70% de confiança, e a faixa inferior lista os dez vizinhos mais próximos com seus scores.
+
+![Consulta em 2D: query destacada, vizinhos, predição KNN e a galeria dos dez vizinhos mais próximos.](04_2d_results.png)
+
+A mesma consulta na projeção 3D:
+
+![A mesma consulta na projeção 3D.](05_3d_results.png)
+
+A API expõe documentação interativa gerada automaticamente pelo FastAPI, com todos os endpoints e os esquemas de dados derivados dos modelos Pydantic.
+
+![Documentação interativa da API (FastAPI / OpenAPI).](image_fastapi_docs.png)
 
 ---
 
