@@ -410,6 +410,29 @@ perfil `app` adiciona API e *frontend* (`docker compose --profile app up -d`).
 
 ### Sobre o código
 
+As principais tecnologias empregadas, com uma breve explicação de cada uma:
+
+- **Python 3.13** com **uv**: linguagem do projeto e gerenciador de
+  dependências/ambientes (rápido, com *lockfile* reproduzível).
+- **OpenCLIP**: implementação aberta do modelo CLIP, que converte uma imagem em
+  um vetor (*embedding*) que captura seu conteúdo visual.
+- **Milvus**: banco de dados vetorial, especializado em armazenar *embeddings* e
+  fazer busca por vizinhos mais próximos em larga escala.
+- **scikit-learn (PCA)**: biblioteca de *machine learning*; usamos o PCA para
+  reduzir os vetores a 2D/3D preservando as direções de maior variância.
+- **FastAPI**: *framework* web para APIs em Python, com validação e documentação
+  automáticas; expõe o *backend* via HTTP.
+- **Streamlit** com **Plotly**: Streamlit constrói a interface web em Python
+  puro; Plotly desenha os gráficos de dispersão 2D/3D interativos.
+- **Pydantic v2**: valida e tipa os dados que trafegam entre as camadas,
+  garantindo que todas concordem sobre o formato.
+- **ruff**, **mypy**, **pytest**: *linter*/formatador, verificador de tipos
+  estático e *framework* de testes, respectivamente.
+- **Docker Compose**: orquestra os serviços (Milvus, API, interface) em
+  contêineres, para subir tudo com um comando.
+
+A tabela abaixo resume as decisões de implementação:
+
 | Aspecto | Decisão |
 | --- | --- |
 | Linguagem | Python 3.13, gerenciada por `uv` |
@@ -428,14 +451,45 @@ de cada módulo/função; comentários em linha marcam decisões não óbvias (e
 por que negar similaridade negativa no voto, por que PCA e não UMAP). Código
 óbvio não é comentado.
 
-**Estratégia de testes:** o *backend* é puro e testado sem Milvus/torch
-(projeção, KNN, *manifest*, modelos); a API é testada com um serviço falso,
-verificando inclusive a garantia de consistência de modelo (409). Comandos:
+---
+
+## Testes
+
+A suíte tem **30 testes** e foi desenhada para ser rápida e determinística: o
+*backend* é puro e testado sem Milvus nem *torch*, e a API é testada com um
+serviço falso (dublê), o que dispensa qualquer dependência externa e ainda
+permite verificar a garantia de consistência de modelo (resposta `409`). Os
+testes rodam em poucos segundos.
+
+| Arquivo | O que cobre | Nº |
+| --- | --- | ---: |
+| `test_knn.py` | Voto KNN: conjunto vazio, unanimidade, maioria vs. voto ponderado, corte por `k`, similaridade negativa sem subtrair evidência, desempate determinístico | 7 |
+| `test_manifest.py` | Contrato de dados: rejeição de `item_id` duplicado, campos obrigatórios, filtros por split/benchmark, amostragem determinística por classe, recorte de bbox com clip nas bordas | 7 |
+| `test_projection.py` | PCA: dimensionalidade pedida, `transform` reproduz a galeria (base da projeção da consulta), vetor único, degradação graciosa, galeria vazia, determinismo | 6 |
+| `test_api.py` | Contrato HTTP: `health`, coleções com seu modelo, projeção e 404, consulta feliz com predição, upload inválido rejeitado | 6 |
+| `test_models.py` | Modelos Pydantic: limites de confiança, `rank` positivo, campos `model_*`, *round-trip* JSON | 4 |
+
+Trecho ilustrativo (o voto ponderado por similaridade pode inverter o vencedor
+em relação à maioria simples):
+
+```python
+def test_weighted_vote_can_flip_the_winner() -> None:
+    hits = [
+        _hit("a", "Traineira", 0.30, 1),
+        _hit("b", "Traineira", 0.31, 2),
+        _hit("c", "Lancha", 0.99, 3),
+    ]
+    pred = predict_class(hits, weighted=True)
+    assert pred.predicted_class == "Lancha"
+    assert abs(pred.confidence - 0.99 / 1.60) < 1e-6
+```
+
+Execução completa (as três verificações devem ficar verdes):
 
 ```bash
-uv run ruff check cbir/ tests/
-uv run mypy cbir/
-uv run pytest
+uv run ruff check cbir/ tests/   # lint
+uv run mypy cbir/                # tipos
+uv run pytest                    # 30 testes
 ```
 
 ---

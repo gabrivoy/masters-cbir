@@ -428,6 +428,29 @@ qualquer máquina: CUDA, depois GPU Apple (MPS/Metal), depois CPU
 
 \subsection{Sobre o código}
 
+As principais tecnologias empregadas, com uma breve explicação de cada uma:
+
+\begin{itemize}
+  \item \textbf{Python 3.13} com \textbf{uv}: linguagem do projeto e gerenciador
+  de dependências/ambientes (rápido, com \emph{lockfile} reproduzível).
+  \item \textbf{OpenCLIP}: implementação aberta do modelo CLIP, que converte uma
+  imagem em um vetor (\emph{embedding}) que captura seu conteúdo visual.
+  \item \textbf{Milvus}: banco de dados vetorial, especializado em armazenar
+  \emph{embeddings} e fazer busca por vizinhos mais próximos em larga escala.
+  \item \textbf{scikit-learn (PCA)}: biblioteca de \emph{machine learning}; usamos
+  o PCA para reduzir os vetores a 2D/3D preservando as direções de maior variância.
+  \item \textbf{FastAPI}: \emph{framework} web para APIs em Python, com validação
+  e documentação automáticas; expõe o \emph{backend} via HTTP.
+  \item \textbf{Streamlit} com \textbf{Plotly}: Streamlit constrói a interface web
+  em Python puro; Plotly desenha os gráficos de dispersão 2D/3D interativos.
+  \item \textbf{Pydantic v2}: valida e tipa os dados que trafegam entre as
+  camadas, garantindo que todas concordem sobre o formato.
+  \item \textbf{ruff}, \textbf{mypy}, \textbf{pytest}: \emph{linter}/formatador,
+  verificador de tipos estático e \emph{framework} de testes, respectivamente.
+  \item \textbf{Docker Compose}: orquestra os serviços (Milvus, API, interface)
+  em contêineres, para subir tudo com um comando.
+\end{itemize}
+
 \begin{table}[H]
 \centering
 \begin{tabular}{@{}p{4cm}p{10cm}@{}}
@@ -454,16 +477,52 @@ Qualidade & \texttt{ruff} (lint), \texttt{mypy} (tipos), \texttt{pytest} (testes
 marcam decisões não óbvias (ex.: por que negar similaridade negativa no voto,
 por que PCA e não UMAP). Código óbvio não é comentado.
 
-\medskip
-\noindent\textbf{Estratégia de testes:} o \emph{backend} é puro e testado sem
-Milvus/torch (projeção, KNN, \emph{manifest}, modelos); a API é testada com um
-serviço falso, verificando inclusive a garantia de consistência de modelo
-(\texttt{409}). São 30 testes, executados com:
+% Testes
+\section{Testes}
+
+A suíte tem \textbf{30 testes} e foi desenhada para ser rápida e determinística:
+o \emph{backend} é puro e testado sem Milvus nem \emph{torch}, e a API é testada
+com um serviço falso (dublê), o que dispensa qualquer dependência externa e
+ainda permite verificar a garantia de consistência de modelo (resposta
+\texttt{409}). Os testes rodam em poucos segundos.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}p{2.6cm}p{10cm}r@{}}
+\toprule
+\textbf{Arquivo} & \textbf{O que cobre} & \textbf{Nº} \\
+\midrule
+\texttt{test\_knn} & Voto KNN: conjunto vazio, unanimidade, maioria vs.\ voto ponderado, corte por \texttt{k}, similaridade negativa sem subtrair evidência, desempate determinístico & 7 \\
+\texttt{test\_manifest} & Contrato de dados: rejeição de \texttt{item\_id} duplicado, campos obrigatórios, filtros por split/benchmark, amostragem determinística por classe, recorte de bbox com clip nas bordas & 7 \\
+\texttt{test\_projection} & PCA: dimensionalidade pedida, \texttt{transform} reproduz a galeria, vetor único, degradação graciosa, galeria vazia, determinismo & 6 \\
+\texttt{test\_api} & Contrato HTTP: \texttt{health}, coleções com seu modelo, projeção e 404, consulta feliz com predição, upload inválido rejeitado & 6 \\
+\texttt{test\_models} & Modelos Pydantic: limites de confiança, \texttt{rank} positivo, campos \texttt{model\_*}, \emph{round-trip} JSON & 4 \\
+\bottomrule
+\end{tabular}
+\caption{Cobertura da suíte de testes (30 no total).}
+\end{table}
+
+\noindent Trecho ilustrativo (o voto ponderado por similaridade pode inverter o
+vencedor em relação à maioria simples):
+
+\begin{lstlisting}
+def test_weighted_vote_can_flip_the_winner() -> None:
+    hits = [
+        _hit("a", "Traineira", 0.30, 1),
+        _hit("b", "Traineira", 0.31, 2),
+        _hit("c", "Lancha", 0.99, 3),
+    ]
+    pred = predict_class(hits, weighted=True)
+    assert pred.predicted_class == "Lancha"
+    assert abs(pred.confidence - 0.99 / 1.60) < 1e-6
+\end{lstlisting}
+
+\noindent Execução completa (as três verificações devem ficar verdes):
 
 \begin{lstlisting}[language=bash]
 uv run ruff check cbir/ tests/   # lint
 uv run mypy cbir/                # tipos
-uv run pytest                    # testes
+uv run pytest                    # 30 testes
 \end{lstlisting}
 
 % Manual
