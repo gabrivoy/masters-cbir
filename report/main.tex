@@ -689,6 +689,17 @@ Reconstrução via cache (\texttt{seed}) & Coleção recriada em $\approx$3\,s s
 \caption{Resultados da verificação de ponta a ponta.}
 \end{table}
 
+\medskip
+\noindent\textbf{Nota sobre escala da visualização.} A verificação usou 160
+vetores. O gargalo prático da ferramenta não é o Milvus nem o PCA, e sim a
+renderização no navegador: o Plotly desenha os pontos como SVG por padrão, o que
+mantém a interação (rotação 3D, \emph{hover}, \emph{zoom}) fluida até a ordem de
+alguns milhares de pontos e começa a degradar acima disso. Escalar para dezenas
+de milhares exigiria trocar para renderização WebGL (\texttt{Scattergl}, que
+suporta $\sim$100 mil pontos) ou amostrar/agregar a galeria antes de plotar.
+Esses são limites esperados da abordagem de renderização, não medições deste
+projeto, e ficam como trabalho futuro natural.
+
 \section{Conclusão e Trabalhos Futuros}
 
 O programa entrega um sistema CBIR funcional e reproduzível, com três camadas

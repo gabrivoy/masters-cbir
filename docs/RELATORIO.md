@@ -629,6 +629,16 @@ O sistema foi validado de ponta a ponta na máquina de desenvolvimento
 | `ruff` / `mypy` / `pytest` | Limpo / limpo / 30 testes passando |
 | Reconstrução via cache (`seed`) | Coleção recriada em ~3 s sem modelo/GPU |
 
+**Nota sobre escala da visualização.** A verificação usou 160 vetores. O gargalo
+prático da ferramenta não é o Milvus nem o PCA, e sim a renderização no
+navegador: o Plotly desenha os pontos como SVG por padrão, o que mantém a
+interação (rotação 3D, *hover*, *zoom*) fluida até a ordem de alguns milhares de
+pontos e começa a degradar acima disso. Escalar para dezenas de milhares
+exigiria trocar para renderização WebGL (`Scattergl`, que suporta ~100 mil
+pontos) ou amostrar/agregar a galeria antes de plotar. Esses são limites
+esperados da abordagem de renderização, não medições deste projeto, e ficam como
+trabalho futuro natural.
+
 _Data: [preencher]. Repositório: `cbir/`._
 
 ---
