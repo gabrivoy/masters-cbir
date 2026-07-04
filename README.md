@@ -1,34 +1,40 @@
-# CBIR — Vector-Space Explorer for Vessel Images
+# Vector-Space Explorer for Images
+
+> Content-Based Image Retrieval (CBIR): index image embeddings into a vector
+> database and explore the vector space (PCA + KNN) through a FastAPI and
+> Streamlit stack.
 
 A Content-Based Image Retrieval system that indexes image embeddings into a
-vector database and lets you **explore the embedding space visually**: project
-the indexed gallery to 2D/3D with PCA, drop in a query image, and see where it
-lands relative to the class clusters — together with the class a K-Nearest-
-Neighbours vote over its retrieved neighbours would assign it.
+vector database and lets you **explore the embedding space visually**: it
+projects the indexed gallery to 2D/3D with PCA, lets you drop in a query image,
+and shows where it lands relative to the class clusters, together with the class
+a K-Nearest-Neighbours vote over its retrieved neighbours would assign it.
 
-It is built for CBIR researchers who want to *see*, not just measure, whether
-their retrieval and classification are behaving: does a query land inside the
-right cluster, and do its nearest neighbours agree on its class?
+It is built for researchers who want to *see*, not just measure, whether their
+retrieval and classification are behaving: does a query land inside the right
+cluster, and do its nearest neighbours agree on its class?
 
-> Context: spun off from a maritime-surveillance project (TecGraf PUC / Embraer)
-> that monitors vessels in Guanabara Bay. The long-term goal is retrieval-based
-> auto-labeling of a large unlabeled image pool. This repository is the
-> programming-project deliverable: a small, correct, end-to-end system.
+> **Case study.** The system is generic and works with any image. The committed
+> sample data comes from a maritime-surveillance project (TecGraf PUC-Rio /
+> Embraer) that monitors vessels in Guanabara Bay, but nothing in the system is
+> domain-specific. The long-term goal is retrieval-based auto-labeling of a
+> large unlabeled image pool. This repository is the programming-project
+> deliverable: a small, correct, end-to-end system.
 
 ## Highlights
 
 - **Pluggable embedding models, kept consistent end to end.** Pick the model at
   index time; the collection remembers it, and every query is embedded with the
-  *same* model — mixing embedding spaces is refused by design.
+  *same* model (mixing embedding spaces is refused by design).
 - **PCA projection with an exact query transform.** Unlike t-SNE/UMAP, PCA can
   place a brand-new query image in the *same* coordinate space as the gallery.
 - **KNN class prediction.** A majority (optionally similarity-weighted) vote
   over the retrieved neighbours, shown with a confidence bar.
 - **Three clean tiers:** a pure Python backend, a FastAPI service, and a
   Streamlit frontend that talks only to the API.
-- **Runs out of the box.** A tiny committable sample (160 crops, 4 vessel
-  classes) plus a precomputed-embedding cache means you can demo it without the
-  33 GB image pool and without a GPU.
+- **Runs out of the box.** A tiny committable sample (160 crops, 4 classes)
+  plus a precomputed-embedding cache means you can demo it without the 33 GB
+  image pool and without a GPU.
 
 ## Architecture
 
@@ -61,7 +67,7 @@ flowchart LR
 uv sync                        # install everything
 docker compose up -d           # start Milvus (etcd + minio + milvus + Attu)
 
-# Reconstruct the demo collection from the precomputed cache — no GPU needed:
+# Reconstruct the demo collection from the precomputed cache (no GPU needed):
 uv run cbir seed --collection cbir_sample --parquet cbir/sample_data/embeddings.parquet
 
 # In two terminals:
