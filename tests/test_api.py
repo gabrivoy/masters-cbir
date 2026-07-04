@@ -1,6 +1,6 @@
 """API tests using a fake service, so no Milvus or torch is required.
 
-These verify the HTTP contract and — most importantly — that the
+These verify the HTTP contract and, most importantly, that the
 model-consistency guarantee surfaces as a 409 Conflict.
 """
 
@@ -12,7 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from cbir.models import (
+from cbir.common.models import (
     CollectionInfo,
     Prediction,
     ProjectionPoint,
@@ -20,7 +20,7 @@ from cbir.models import (
     QueryResponse,
     SearchHit,
 )
-from cbir.service import ModelMismatchError
+from cbir.service.service import ModelMismatchError
 
 
 class FakeService:

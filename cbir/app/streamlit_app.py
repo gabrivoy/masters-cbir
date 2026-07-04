@@ -6,7 +6,7 @@ The frontend does three things:
 2. lets you upload a query image, projects it into the *same* PCA space, and
    highlights it together with its nearest neighbours;
 3. reports which class a KNN vote over those neighbours would assign, with a
-   confidence bar — the retrieval-based auto-labeling idea, made visual.
+   confidence bar (the retrieval-based auto-labeling idea, made visual).
 
 It never touches Milvus or torch directly: everything goes through the API,
 which guarantees the query is embedded with the same model as the collection.
@@ -23,6 +23,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from cbir.app.client import APIError, CBIRClient
+from cbir.common.models import ProjectionPoint
 
 # A qualitative palette that stays legible in Streamlit's dark theme.
 CLASS_PALETTE = px.colors.qualitative.Set2
@@ -33,8 +34,8 @@ def _parse_api_url() -> str:
     parser = argparse.ArgumentParser()
     parser.add_argument("--api-url", default="http://localhost:8100")
     # Streamlit passes its own args; parse only ours and ignore the rest.
-    args, _ = parser.parse_known_args(sys.argv[1:])
-    return args.api_url
+    parsed_args, _ = parser.parse_known_args(sys.argv[1:])
+    return str(parsed_args.api_url)
 
 
 def _color_map(classes: list[str]) -> dict[str, str]:
@@ -42,7 +43,13 @@ def _color_map(classes: list[str]) -> dict[str, str]:
     return {cls: CLASS_PALETTE[i % len(CLASS_PALETTE)] for i, cls in enumerate(ordered)}
 
 
-def _scatter(points, query_coords, hit_ids, n_components, color_map):
+def _scatter(
+    points: list[ProjectionPoint],
+    query_coords: list[float] | None,
+    hit_ids: list[str],
+    n_components: int,
+    color_map: dict[str, str],
+) -> go.Figure:
     """Build a Plotly scatter of the gallery plus the optional query point."""
     xs = np.array([p.coords[0] for p in points])
     ys = np.array([p.coords[1] for p in points])
@@ -108,14 +115,14 @@ def _scatter(points, query_coords, hit_ids, n_components, color_map):
 
 
 def main() -> None:
-    st.set_page_config(page_title="CBIR Vector-Space Explorer", layout="wide")
+    st.set_page_config(page_title="Vector-Space Explorer for Images", layout="wide")
     api_url = _parse_api_url()
     client = CBIRClient(api_url)
 
-    st.title("CBIR — Vector-Space Explorer")
+    st.title("Vector-Space Explorer for Images")
     st.caption(
-        "Explore vessel-crop embeddings, drop in a query image, and see which "
-        "class the retrieval neighbours would assign it to."
+        "Explore image embeddings, drop in a query image, and see which class "
+        "the retrieval neighbours would assign it to."
     )
 
     if not client.health():
@@ -127,20 +134,20 @@ def main() -> None:
         st.warning("No collections indexed yet. Run `cbir index` first.")
         st.stop()
 
-    # --- sidebar controls -------------------------------------------------
+    # sidebar controls
     with st.sidebar:
         st.header("Controls")
         labels = {f"{c.name}  ·  {c.count} items  ·  {c.model_name or '?'}": c for c in collections}
         chosen_label = st.selectbox("Collection", list(labels))
         collection = labels[chosen_label]
         st.info(f"**Embedding model:** `{collection.model_name or 'unknown'}`\n\n"
-                "The query is embedded with this same model — guaranteed by the API.")
+                "The query is embedded with this same model, guaranteed by the API.")
         dims = st.radio("Projection", ["3D", "2D"], horizontal=True)
         n_components = 3 if dims == "3D" else 2
         top_k = st.slider("Neighbours (k)", min_value=1, max_value=30, value=10)
         weighted = st.checkbox("Similarity-weighted vote", value=True)
 
-    # --- gallery projection ----------------------------------------------
+    # gallery projection
     try:
         projection = client.project(collection.name, n_components=n_components)
     except APIError as exc:
@@ -155,8 +162,8 @@ def main() -> None:
         f"({', '.join(f'{v:.1%}' for v in projection.explained_variance_ratio)})"
     )
 
-    # --- query panel ------------------------------------------------------
-    upload = st.file_uploader("Upload a query image (a vessel crop)", type=["png", "jpg", "jpeg"])
+    # query panel
+    upload = st.file_uploader("Upload a query image (an image crop)", type=["png", "jpg", "jpeg"])
     query_coords = None
     result = None
     if upload is not None:
@@ -190,12 +197,12 @@ def main() -> None:
                 st.progress(min(1.0, pred.confidence))
                 for vote in pred.votes:
                     st.write(
-                        f"`{vote.target_class}` — {vote.count} votes, weight {vote.weight:.2f}"
+                        f"`{vote.target_class}`: {vote.count} votes, weight {vote.weight:.2f}"
                     )
             else:
                 st.write("No neighbours to vote with.")
 
-    # --- neighbour crops --------------------------------------------------
+    # neighbour crops
     if result is not None and result.hits:
         st.subheader(f"Top-{len(result.hits)} nearest neighbours")
         cols = st.columns(min(6, len(result.hits)))

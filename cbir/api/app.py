@@ -1,6 +1,6 @@
 """FastAPI application: the middle tier between the backend and the frontend.
 
-Endpoints are thin — they parse the request, delegate to :class:`CBIRService`,
+Endpoints are thin: they parse the request, delegate to :class:`CBIRService`,
 and return Pydantic models. Every request is logged as one wide event carrying
 method, path, status, and latency, so the API's behaviour is observable from a
 single line per call.
@@ -10,18 +10,18 @@ from __future__ import annotations
 
 import io
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from PIL import Image, UnidentifiedImageError
 
+from cbir.common.models import CollectionInfo, ProjectResponse, QueryResponse
+from cbir.common.observability import configure_logging, get_logger, log_event, log_startup
 from cbir.config import MODEL_SPECS
 from cbir.core.extractor import resolve_image_path
-from cbir.models import CollectionInfo, ProjectResponse, QueryResponse
-from cbir.observability import configure_logging, get_logger, log_event, log_startup
-from cbir.service import ModelMismatchError, get_service
+from cbir.service.service import ModelMismatchError, get_service
 
 _log = get_logger("api")
 
@@ -38,13 +38,15 @@ def create_app(device: str = "auto") -> FastAPI:
     app = FastAPI(
         title="CBIR API",
         version="0.1.0",
-        summary="Index and explore vessel bbox embeddings in a vector space.",
+        summary="Index and explore image bounding-box embeddings in a vector space.",
         lifespan=lifespan,
     )
     service = get_service(device)
 
     @app.middleware("http")
-    async def wide_event_logging(request: Request, call_next):
+    async def wide_event_logging(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         started = time.perf_counter()
         response = await call_next(request)
         log_event(
@@ -57,7 +59,7 @@ def create_app(device: str = "auto") -> FastAPI:
         )
         return response
 
-    # --- meta -------------------------------------------------------------
+    # meta
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -70,7 +72,7 @@ def create_app(device: str = "auto") -> FastAPI:
     def collections() -> list[CollectionInfo]:
         return service.list_collections()
 
-    # --- projection -------------------------------------------------------
+    # projection
     @app.get("/collections/{name}/project", response_model=ProjectResponse)
     def project(
         name: str,
@@ -81,7 +83,7 @@ def create_app(device: str = "auto") -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    # --- query ------------------------------------------------------------
+    # query
     @app.post("/collections/{name}/query", response_model=QueryResponse)
     async def query(
         name: str,
@@ -107,9 +109,9 @@ def create_app(device: str = "auto") -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    # --- crop images ------------------------------------------------------
+    # crop images
     @app.get("/crop")
-    def crop(image_path: str = Query(...)):
+    def crop(image_path: str = Query(...)) -> FileResponse:
         """Serve a gallery/hit image by its manifest path so the FE can show it.
 
         Only paths that resolve to an existing file are served; anything else
@@ -121,7 +123,10 @@ def create_app(device: str = "auto") -> FastAPI:
         return FileResponse(resolved)
 
     @app.exception_handler(Exception)
-    async def unhandled(request: Request, exc: Exception):
+    async def unhandled(request: Request, exc: Exception) -> JSONResponse:
+        # FastAPI passes the exception positionally; we log the path, not the
+        # exception object, to avoid leaking internals to the client.
+        del exc
         _log.error("unhandled error", extra={"event": "api.error", "path": request.url.path})
         return JSONResponse(status_code=500, content={"detail": "Internal error."})
 

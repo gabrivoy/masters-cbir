@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Sequence
 
-from cbir.models import ClassVote, Prediction, SearchHit
+from cbir.common.models import ClassVote, Prediction, SearchHit
 
 
 def predict_class(
@@ -37,7 +37,7 @@ def predict_class(
         vote mass (weighted or count), so it lies in ``[0, 1]``.
 
     Ties are broken deterministically: higher vote mass, then higher count,
-    then class name — so the same neighbours always yield the same answer.
+    then class name, so the same neighbours always yield the same answer.
     """
     considered = list(hits) if k is None else list(hits)[:k]
     effective_k = len(considered)

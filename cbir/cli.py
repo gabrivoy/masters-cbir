@@ -2,10 +2,10 @@
 
 One entry point, four commands:
 
-* ``cbir sample``  — build the committable sample dataset from source manifests
-* ``cbir index``   — embed a manifest's crops into a Milvus collection
-* ``cbir api``     — run the FastAPI service
-* ``cbir app``     — run the Streamlit frontend
+* ``cbir sample``: build the committable sample dataset from source manifests
+* ``cbir index``: embed a manifest's crops into a Milvus collection
+* ``cbir api``: run the FastAPI service
+* ``cbir app``: run the Streamlit frontend
 
 Every command shares the same model/device options so the embedding model is
 selectable everywhere and consistent end to end.
@@ -19,12 +19,12 @@ from pathlib import Path
 
 import typer
 
+from cbir.common.observability import configure_logging, get_logger
 from cbir.config import DEFAULT_DEVICE, DEFAULT_MODEL, MODEL_SPECS, repo_root
-from cbir.observability import configure_logging, get_logger
 
 app = typer.Typer(
     name="cbir",
-    help="Content-Based Image Retrieval for vessel bounding-box crops.",
+    help="Content-Based Image Retrieval: index image crops and explore the vector space.",
     add_completion=False,
     no_args_is_help=True,
 )
@@ -43,7 +43,7 @@ def sample(
 ) -> None:
     """Build the small committable sample dataset (crops + manifest)."""
     configure_logging()
-    from cbir.sample import build_sample
+    from cbir.data.sample import build_sample
 
     root = repo_root()
     out = output_dir or root / "cbir" / "sample_data"

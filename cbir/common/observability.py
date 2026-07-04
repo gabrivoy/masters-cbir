@@ -2,9 +2,9 @@
 
 The system emits two kinds of records:
 
-* **startup events** — one wide event per process describing how it was
+* **startup events**: one wide event per process describing how it was
   configured (device, model, host, ...);
-* **usage events** — one wide event per meaningful operation (an index run, a
+* **usage events**: one wide event per meaningful operation (an index run, a
   projection, a search, a prediction), carrying *all* of that operation's
   context in a single line rather than scattering it across many log calls.
 
@@ -13,7 +13,7 @@ one line answers "what happened, to what, how big, how long". Fields are
 rendered as ``key=value`` pairs and also attached to the record's ``extra`` so
 a future JSON handler could serialize them verbatim.
 
-Everything here uses only ``logging`` from the stdlib — no third-party logging
+Everything here uses only ``logging`` from the stdlib, no third-party logging
 dependency.
 """
 

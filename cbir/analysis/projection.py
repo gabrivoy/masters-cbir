@@ -38,7 +38,8 @@ class ProjectionModel:
         a 2D (M, n_components) array.
         """
         matrix = np.atleast_2d(np.asarray(embeddings, dtype=np.float32))
-        return self.pca.transform(matrix)
+        projected: np.ndarray = self.pca.transform(matrix)
+        return projected
 
     @property
     def cumulative_variance(self) -> float:

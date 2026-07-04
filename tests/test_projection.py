@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from cbir.viz.projection import fit_projection
+from cbir.analysis.projection import fit_projection
 
 
 def _gallery(n: int, dim: int, seed: int = 0) -> np.ndarray:

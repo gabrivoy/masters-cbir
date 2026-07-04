@@ -2,8 +2,8 @@
 
 Embedding a gallery needs the model (a download + a forward pass per crop).
 For a committable demo we snapshot the vectors once and store them next to the
-sample, so anyone can reconstruct the Milvus collection in seconds — no model
-download, no GPU — with ``cbir seed``.
+sample, so anyone can reconstruct the Milvus collection in seconds (no model
+download, no GPU) with ``cbir seed``.
 
 The cache is a single Parquet file: metadata columns plus an ``embedding``
 column holding the float vector as a list. The embedding model name and
@@ -20,8 +20,8 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from cbir.common.observability import get_logger, timed_event
 from cbir.core.milvus_client import _BBOX_FIELDS, _META_FIELDS, MilvusClient
-from cbir.observability import get_logger, timed_event
 
 _log = get_logger("cache")
 

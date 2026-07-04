@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from cbir.models import ClassVote, IndexResult, Prediction, SearchHit
+from cbir.common.models import ClassVote, IndexResult, Prediction, SearchHit
 
 
 def test_prediction_confidence_bounds_are_enforced() -> None:

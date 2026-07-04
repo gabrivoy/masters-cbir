@@ -1,7 +1,7 @@
 """Application service layer.
 
 This is the orchestration the API and (indirectly) the CLI share. It wires the
-backend pieces together — Milvus, the embedder, PCA projection, KNN — and
+backend pieces together (Milvus, the embedder, PCA projection, KNN) and
 caches the expensive artefacts (loaded models, fitted projections) so repeated
 requests are cheap.
 
@@ -16,10 +16,9 @@ from functools import lru_cache
 import numpy as np
 from PIL import Image
 
-from cbir.core.extractor import Embedder
-from cbir.core.milvus_client import MilvusClient
-from cbir.knn import predict_class
-from cbir.models import (
+from cbir.analysis.knn import predict_class
+from cbir.analysis.projection import ProjectionModel, fit_projection
+from cbir.common.models import (
     BBox,
     CollectionInfo,
     ProjectionPoint,
@@ -27,8 +26,9 @@ from cbir.models import (
     QueryResponse,
     SearchHit,
 )
-from cbir.observability import get_logger, timed_event
-from cbir.viz.projection import ProjectionModel, fit_projection
+from cbir.common.observability import get_logger, timed_event
+from cbir.core.extractor import Embedder
+from cbir.core.milvus_client import MilvusClient
 
 _log = get_logger("service")
 
@@ -52,7 +52,7 @@ class CBIRService:
         # projection cache: (collection, n_components) -> (model, rows)
         self._projections: dict[tuple[str, int], tuple[ProjectionModel, list[dict]]] = {}
 
-    # --- models -----------------------------------------------------------
+    # models
     def embedder(self, model_name: str) -> Embedder:
         """Return a cached embedder for ``model_name``, loading it on first use."""
         if model_name not in self._embedders:
@@ -64,7 +64,7 @@ class CBIRService:
         """The embedding model recorded on a collection (empty if unknown)."""
         return self.client.model_of(collection)
 
-    # --- collections ------------------------------------------------------
+    # collections
     def list_collections(self) -> list[CollectionInfo]:
         infos: list[CollectionInfo] = []
         for name in self.client.list_collections():
@@ -77,7 +77,7 @@ class CBIRService:
             )
         return infos
 
-    # --- projection -------------------------------------------------------
+    # projection
     def _load_projection(
         self, collection: str, n_components: int
     ) -> tuple[ProjectionModel, list[dict]]:
@@ -120,7 +120,7 @@ class CBIRService:
             points=points,
         )
 
-    # --- query ------------------------------------------------------------
+    # query
     def query(
         self,
         collection: str,

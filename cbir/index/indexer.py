@@ -13,6 +13,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from cbir.common.models import IndexResult
+from cbir.common.observability import get_logger, timed_event
 from cbir.config import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_DEVICE,
@@ -29,8 +31,6 @@ from cbir.core.manifest import (
     sample_head_per_class,
 )
 from cbir.core.milvus_client import MilvusClient
-from cbir.models import IndexResult
-from cbir.observability import get_logger, timed_event
 
 _log = get_logger("index")
 

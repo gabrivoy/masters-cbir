@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from cbir.knn import predict_class
-from cbir.models import SearchHit
+from cbir.analysis.knn import predict_class
+from cbir.common.models import SearchHit
 
 
 def _hit(item_id: str, cls: str, score: float, rank: int) -> SearchHit:

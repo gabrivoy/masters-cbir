@@ -24,7 +24,7 @@ from cbir.core.manifest import (
     filter_records,
     load_manifest,
 )
-from cbir.observability import get_logger, timed_event
+from cbir.common.observability import get_logger, timed_event
 
 _log = get_logger("sample")
 

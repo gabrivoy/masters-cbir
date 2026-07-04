@@ -11,7 +11,7 @@ from urllib.parse import quote
 
 import requests
 
-from cbir.models import CollectionInfo, ProjectResponse, QueryResponse
+from cbir.common.models import CollectionInfo, ProjectResponse, QueryResponse
 
 
 class APIError(RuntimeError):
@@ -26,15 +26,16 @@ class CBIRClient:
         self.timeout = timeout
 
     def _detail(self, response: requests.Response) -> str:
+        # Best-effort: prefer the API's structured "detail", fall back to raw text.
         try:
             return str(response.json().get("detail", response.text))
-        except Exception:  # noqa: BLE001 - best-effort error extraction
-            return response.text
+        except ValueError:
+            return str(response.text)
 
     def health(self) -> bool:
         try:
             response = requests.get(f"{self.base_url}/health", timeout=5)
-            return response.ok
+            return bool(response.ok)
         except requests.RequestException:
             return False
 
