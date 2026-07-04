@@ -18,13 +18,13 @@ from pathlib import Path
 
 from PIL import Image
 
+from cbir.common.observability import get_logger, timed_event
 from cbir.core.manifest import (
     ManifestRecord,
     clipped_crop_box,
     filter_records,
     load_manifest,
 )
-from cbir.common.observability import get_logger, timed_event
 
 _log = get_logger("sample")
 
