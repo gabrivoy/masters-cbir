@@ -50,63 +50,61 @@ def _scatter(
     n_components: int,
     color_map: dict[str, str],
 ) -> go.Figure:
-    """Build a Plotly scatter of the gallery plus the optional query point."""
+    """Build a Plotly scatter of the gallery plus the optional query point.
+
+    Neighbours are drawn as a separate emphasized trace (larger, ringed) rather
+    than with per-point marker outlines: Scatter3d only accepts a scalar
+    ``marker.line.width``, so a per-point list would raise a ValueError there.
+    Drawing the hits as their own trace works identically in 2D and 3D and makes
+    them stand out more clearly.
+    """
+    is_3d = n_components >= 3
     xs = np.array([p.coords[0] for p in points])
     ys = np.array([p.coords[1] for p in points])
     zs = np.array([p.coords[2] if len(p.coords) > 2 else 0.0 for p in points])
     classes = [p.target_class for p in points]
     hit_set = set(hit_ids or [])
-    # Neighbours get a thick ring so they stand out against the cloud.
-    line_widths = [3 if p.item_id in hit_set else 0 for p in points]
+    hit_idx = [i for i, p in enumerate(points) if p.item_id in hit_set]
     hover = [f"{p.target_class}<br>{p.item_id}<br>{p.camera_id}" for p in points]
 
-    if n_components >= 3:
-        fig = go.Figure()
-        for cls in sorted(set(classes)):
-            idx = [i for i, c in enumerate(classes) if c == cls]
-            fig.add_trace(
-                go.Scatter3d(
-                    x=xs[idx], y=ys[idx], z=zs[idx],
-                    mode="markers", name=cls,
-                    marker=dict(
-                        size=4, color=color_map[cls],
-                        line=dict(width=[line_widths[i] for i in idx], color="#111"),
-                    ),
-                    text=[hover[i] for i in idx], hoverinfo="text",
-                )
-            )
-        if query_coords is not None:
-            fig.add_trace(
-                go.Scatter3d(
-                    x=[query_coords[0]], y=[query_coords[1]],
-                    z=[query_coords[2] if len(query_coords) > 2 else 0.0],
-                    mode="markers", name="query",
-                    marker=dict(size=10, color=QUERY_COLOR, symbol="diamond"),
-                )
-            )
+    fig = go.Figure()
+
+    def add_points(indices: list[int], name: str, marker: dict) -> None:
+        common = dict(mode="markers", name=name, marker=marker,
+                      text=[hover[i] for i in indices], hoverinfo="text")
+        if is_3d:
+            fig.add_trace(go.Scatter3d(x=xs[indices], y=ys[indices], z=zs[indices], **common))
+        else:
+            fig.add_trace(go.Scatter(x=xs[indices], y=ys[indices], **common))
+
+    # Gallery, one trace per class.
+    for cls in sorted(set(classes)):
+        idx = [i for i, c in enumerate(classes) if c == cls]
+        add_points(idx, cls, dict(size=4 if is_3d else 9, color=color_map[cls]))
+
+    # Retrieved neighbours: a single emphasized overlay trace. Scatter3d only
+    # accepts a scalar marker.line.width, so the whole marker is built here.
+    if hit_idx:
+        add_points(
+            hit_idx, "neighbours",
+            dict(size=7 if is_3d else 14, color="#facc15",
+                 line=dict(width=2, color="#111")),
+        )
+
+    # Query point.
+    if query_coords is not None:
+        qz = query_coords[2] if len(query_coords) > 2 else 0.0
+        query_marker: dict = dict(size=10 if is_3d else 18, color=QUERY_COLOR, symbol="diamond")
+        if is_3d:
+            fig.add_trace(go.Scatter3d(x=[query_coords[0]], y=[query_coords[1]], z=[qz],
+                                       mode="markers", name="query", marker=query_marker))
+        else:
+            query_marker["line"] = dict(width=2, color="#fff")
+            fig.add_trace(go.Scatter(x=[query_coords[0]], y=[query_coords[1]],
+                                     mode="markers", name="query", marker=query_marker))
+
+    if is_3d:
         fig.update_layout(scene=dict(aspectmode="cube"))
-    else:
-        fig = go.Figure()
-        for cls in sorted(set(classes)):
-            idx = [i for i, c in enumerate(classes) if c == cls]
-            fig.add_trace(
-                go.Scatter(
-                    x=xs[idx], y=ys[idx], mode="markers", name=cls,
-                    marker=dict(
-                        size=9, color=color_map[cls],
-                        line=dict(width=[line_widths[i] for i in idx], color="#111"),
-                    ),
-                    text=[hover[i] for i in idx], hoverinfo="text",
-                )
-            )
-        if query_coords is not None:
-            fig.add_trace(
-                go.Scatter(
-                    x=[query_coords[0]], y=[query_coords[1]], mode="markers", name="query",
-                    marker=dict(size=18, color=QUERY_COLOR, symbol="diamond",
-                                line=dict(width=2, color="#fff")),
-                )
-            )
     fig.update_layout(
         height=620, legend_title_text="class",
         margin=dict(l=0, r=0, t=10, b=0), template="plotly_dark",
@@ -142,8 +140,8 @@ def main() -> None:
         collection = labels[chosen_label]
         st.info(f"**Embedding model:** `{collection.model_name or 'unknown'}`\n\n"
                 "The query is embedded with this same model, guaranteed by the API.")
-        dims = st.radio("Projection", ["3D", "2D"], horizontal=True)
-        n_components = 3 if dims == "3D" else 2
+        dims = st.radio("Projection", ["2D", "3D"], horizontal=True)
+        n_components = 2 if dims == "2D" else 3
         top_k = st.slider("Neighbours (k)", min_value=1, max_value=30, value=10)
         weighted = st.checkbox("Similarity-weighted vote", value=True)
 
