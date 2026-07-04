@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# OS
+.DS_Store
+
+# Large local dataset & generated artifacts (never committed).
+# The committable demo lives in cbir/sample_data/ instead.
+data/
+artifacts/
+
+# Legacy proof-of-concept manifests (kept out of git).
+archive/mvp/manifests/*.jsonl
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Old auto-generated parent-project docs
+docs/raai-autodoc
