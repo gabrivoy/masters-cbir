@@ -95,6 +95,51 @@ services:
       retries: 10
       start_period: 30s
 
+  # --- CBIR application services (opt-in via the `app` profile) -------------
+  # `docker compose up -d`               -> just the Milvus stack + Attu
+  # `docker compose --profile app up -d` -> also the API and the frontend
+  api:
+    container_name: cbir-api
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["cbir", "api", "--host", "0.0.0.0", "--port", "8100", "--device", "cpu"]
+    environment:
+      CBIR_MILVUS_HOST: milvus
+    depends_on:
+      milvus:
+        condition: service_healthy
+    volumes:
+      # Mount the repo so committed sample crops are servable by /crop.
+      - ./cbir/sample_data:/app/cbir/sample_data:ro
+    ports:
+      - "8100:8100"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8100/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  app:
+    container_name: cbir-app
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      [
+        "cbir", "app",
+        "--api-url", "http://api:8100",
+        "--port", "8501",
+      ]
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+
 volumes:
   milvus_etcd:
   milvus_minio:
