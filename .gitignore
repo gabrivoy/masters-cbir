@@ -14,8 +14,9 @@ wheels/
 
 # Large local dataset & generated artifacts (never committed).
 # The committable demo lives in cbir/sample_data/ instead.
-data/
-artifacts/
+# Anchored to the repo root so the cbir/data/ package is not ignored.
+/data/
+/artifacts/
 
 # Legacy proof-of-concept manifests (kept out of git).
 archive/mvp/manifests/*.jsonl

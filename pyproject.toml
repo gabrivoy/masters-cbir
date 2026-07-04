@@ -52,11 +52,14 @@ target-version = "py313"
 extend-exclude = ["mvp", "archive", "docs"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "N", "RET", "RUF", "PTH", "ARG"]
 ignore = [
     "B008",  # typer relies on function-call defaults (Option/Argument)
     "C408",  # plotly's API is built on dict(...) kwargs; keep them as-is
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG"]  # test fakes take unused args to match the real signature
 
 [tool.mypy]
 python_version = "3.13"
@@ -64,6 +67,12 @@ files = ["cbir"]
 ignore_missing_imports = true
 warn_unused_ignores = true
 no_implicit_optional = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+warn_return_any = true
+warn_redundant_casts = true
+warn_unused_configs = true
+check_untyped_defs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
