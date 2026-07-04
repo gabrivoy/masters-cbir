@@ -1,9 +1,11 @@
 """Command-line interface (Typer).
 
-One entry point, four commands:
+One entry point, six commands:
 
 * ``cbir sample``: build the committable sample dataset from source manifests
 * ``cbir index``: embed a manifest's crops into a Milvus collection
+* ``cbir export``: snapshot a collection's embeddings to a Parquet cache
+* ``cbir seed``: reconstruct a collection from a Parquet cache
 * ``cbir api``: run the FastAPI service
 * ``cbir app``: run the Streamlit frontend
 

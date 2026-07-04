@@ -56,12 +56,12 @@ flowchart LR
 
 | Layer | Package | Responsibility |
 | --- | --- | --- |
-| Backend | `cbir/core`, `cbir/index`, `cbir/viz`, `cbir/knn.py` | Manifests, extraction, Milvus, PCA, KNN |
-| Service | `cbir/service.py` | Orchestration + the model-consistency guarantee |
+| Backend | `cbir/core`, `cbir/index`, `cbir/analysis` | Manifests, extraction, Milvus, PCA, KNN |
+| Service | `cbir/service` | Orchestration + the model-consistency guarantee |
 | API | `cbir/api` | Thin FastAPI over the service |
 | Frontend | `cbir/app` | Streamlit vector-space explorer |
-| Contracts | `cbir/models.py` | Pydantic v2 models shared by all layers |
-| Observability | `cbir/observability.py` | Wide-event structured logging |
+| Contracts | `cbir/common/models.py` | Pydantic v2 models shared by all layers |
+| Observability | `cbir/common/observability.py` | Wide-event structured logging |
 
 ## Quickstart (local, with the committed sample)
 

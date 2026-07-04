@@ -28,7 +28,7 @@ from cbir.core.manifest import (
 
 _log = get_logger("sample")
 
-# Source manifests produced by the frozen mvp/data_prep.py, one per class.
+# Source manifests produced by the historical archive/mvp data-preparation flow.
 DEFAULT_SOURCE_MANIFESTS: dict[str, Path] = {
     "Traineira": Path("data/cbir/traineira/v1/manifest.jsonl"),
     "Lancha / Iate": Path("data/cbir/lancha_iate/v1/manifest.jsonl"),

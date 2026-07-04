@@ -1,10 +1,9 @@
 """Manifest records: the bbox-level data contract this system consumes.
 
 A manifest is a JSONL file, one record per annotated bounding box, produced by
-the data-preparation stage (the frozen ``mvp/data_prep.py`` writes v2
-manifests under ``data/cbir/<class>/v1/``). This module only *reads* manifests;
-it never derives them. Each record carries the raw bbox plus metadata, and the
-crop is computed at runtime from the source frame.
+the historical data-preparation stage under ``archive/mvp/``. This module only
+*reads* manifests; it never derives them. Each record carries the raw bbox plus
+metadata, and the crop is computed at runtime from the source frame.
 """
 
 from __future__ import annotations

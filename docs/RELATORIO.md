@@ -161,18 +161,18 @@ flowchart TB
     subgraph API["API: FastAPI (cbir/api)"]
       EP["health · models · collections<br/>project · query · crop"]
     end
-    subgraph SVC["Serviço (cbir/service.py)"]
+    subgraph SVC["Serviço (cbir/service)"]
       CS[CBIRService<br/>cache de modelos e projeções]
     end
     subgraph BE["Backend"]
       EX[Extractor OpenCLIP<br/>cbir/core/extractor.py]
       MC[MilvusClient<br/>cbir/core/milvus_client.py]
-      PR[Projeção PCA<br/>cbir/viz/projection.py]
-      KN[Predição KNN<br/>cbir/knn.py]
+      PR[Projeção PCA<br/>cbir/analysis/projection.py]
+      KN[Predição KNN<br/>cbir/analysis/knn.py]
     end
     DB[(Milvus<br/>FLAT / cosseno)]
-    MODELS[Modelos Pydantic v2<br/>cbir/models.py]
-    OBS[Observabilidade<br/>wide events<br/>cbir/observability.py]
+    MODELS[Modelos Pydantic v2<br/>cbir/common/models.py]
+    OBS[Observabilidade<br/>wide events<br/>cbir/common/observability.py]
 
     UI --> CL --> EP --> CS
     CS --> EX & MC & PR & KN
@@ -487,7 +487,7 @@ por que negar similaridade negativa no voto, por que PCA e não UMAP). Código
 
 ## Testes
 
-A suíte tem **30 testes** e foi desenhada para ser rápida e determinística: o
+A suíte tem **33 testes** e foi desenhada para ser rápida e determinística: o
 *backend* é puro e testado sem Milvus nem *torch*, e a API é testada com um
 serviço falso (dublê), o que dispensa qualquer dependência externa e ainda
 permite verificar a garantia de consistência de modelo (resposta `409`). Os
@@ -500,6 +500,7 @@ testes rodam em poucos segundos.
 | `test_projection.py` | PCA: dimensionalidade pedida, `transform` reproduz a galeria (base da projeção da consulta), vetor único, degradação graciosa, galeria vazia, determinismo | 6 |
 | `test_api.py` | Contrato HTTP: `health`, coleções com seu modelo, projeção e 404, consulta feliz com predição, upload inválido rejeitado | 6 |
 | `test_models.py` | Modelos Pydantic: limites de confiança, `rank` positivo, campos `model_*`, *round-trip* JSON | 4 |
+| `test_scatter.py` | Construção do gráfico Plotly 2D/3D no frontend, incluindo query e vizinhos destacados | 3 |
 
 Trecho ilustrativo (o voto ponderado por similaridade pode inverter o vencedor
 em relação à maioria simples):
@@ -521,7 +522,7 @@ Execução completa (as três verificações devem ficar verdes):
 ```bash
 uv run ruff check cbir/ tests/   # lint
 uv run mypy cbir/                # tipos
-uv run pytest                    # 30 testes
+uv run pytest                    # 33 testes
 ```
 
 ---
@@ -629,7 +630,7 @@ O sistema foi validado de ponta a ponta na máquina de desenvolvimento
 | Projeção PCA 2D/3D da galeria | 160 pontos, `transform` da consulta exato |
 | Consulta ponta a ponta (upload → busca → KNN → projeção) | Predição coerente com confiança |
 | Garantia de consistência de modelo | Recusa (409) confirmada em teste |
-| `ruff` / `mypy` / `pytest` | Limpo / limpo / 30 testes passando |
+| `ruff` / `mypy` / `pytest` | Limpo / limpo / 33 testes passando |
 | Reconstrução via cache (`seed`) | Coleção recriada em ~3 s sem modelo/GPU |
 
 **Nota sobre escala da visualização.** A verificação usou 160 vetores. O gargalo

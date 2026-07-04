@@ -156,18 +156,18 @@ flowchart TB
     subgraph API["API: FastAPI (cbir/api)"]
       EP["health · models · collections<br/>project · query · crop"]
     end
-    subgraph SVC["Service (cbir/service.py)"]
+    subgraph SVC["Service (cbir/service)"]
       CS[CBIRService<br/>model & projection cache]
     end
     subgraph BE["Backend"]
       EX[OpenCLIP extractor<br/>cbir/core/extractor.py]
       MC[MilvusClient<br/>cbir/core/milvus_client.py]
-      PR[PCA projection<br/>cbir/viz/projection.py]
-      KN[KNN prediction<br/>cbir/knn.py]
+      PR[PCA projection<br/>cbir/analysis/projection.py]
+      KN[KNN prediction<br/>cbir/analysis/knn.py]
     end
     DB[(Milvus<br/>FLAT / cosine)]
-    MODELS[Pydantic v2 models<br/>cbir/models.py]
-    OBS[Observability<br/>wide events<br/>cbir/observability.py]
+    MODELS[Pydantic v2 models<br/>cbir/common/models.py]
+    OBS[Observability<br/>wide events<br/>cbir/common/observability.py]
 
     UI --> CL --> EP --> CS
     CS --> EX & MC & PR & KN
@@ -483,7 +483,7 @@ is not commented.
 
 ## Tests
 
-The suite has **30 tests** and is designed to be fast and deterministic: the
+The suite has **33 tests** and is designed to be fast and deterministic: the
 *backend* is pure and tested without Milvus or *torch*, and the API is tested
 with a fake service (a stub), which removes any external dependency and still
 lets us verify the model-consistency guarantee (the `409` response). The tests
@@ -496,6 +496,7 @@ run in a few seconds.
 | `test_projection.py` | PCA: requested dimensionality, `transform` reproduces the gallery (the basis for projecting the query), single vector, graceful degradation, empty gallery, determinism | 6 |
 | `test_api.py` | HTTP contract: `health`, collections with their model, projection and 404, happy-path query with prediction, invalid upload rejected | 6 |
 | `test_models.py` | Pydantic models: confidence bounds, positive `rank`, `model_*` fields, JSON round-trip | 4 |
+| `test_scatter.py` | Plotly 2D/3D frontend figure construction, including query and highlighted neighbours | 3 |
 
 Illustrative snippet (the similarity-weighted vote can flip the winner relative
 to a plain majority):
@@ -517,7 +518,7 @@ Full run (all three checks must be green):
 ```bash
 uv run ruff check cbir/ tests/   # lint
 uv run mypy cbir/                # types
-uv run pytest                    # 30 tests
+uv run pytest                    # 33 tests
 ```
 
 ---
@@ -625,7 +626,7 @@ The system was validated end to end on the development machine (Apple Silicon,
 | Gallery 2D/3D PCA projection | 160 points, exact query `transform` |
 | End-to-end query (upload → search → KNN → projection) | Prediction consistent with confidence |
 | Model-consistency guarantee | Refusal (409) confirmed in tests |
-| `ruff` / `mypy` / `pytest` | Clean / clean / 30 tests passing |
+| `ruff` / `mypy` / `pytest` | Clean / clean / 33 tests passing |
 | Reconstruction via cache (`seed`) | Collection recreated in ~3 s without model/GPU |
 
 **Note on visualization scale.** The verification used 160 vectors. The tool's
