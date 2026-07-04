@@ -89,7 +89,7 @@ class Embedder:
         self._preprocess = preprocess
         self.embedding_dim = int(self._model.visual.output_dim)
 
-    # --- crops ------------------------------------------------------------
+    # crops
     def crop_from_record(
         self,
         record: ManifestRecord,
@@ -106,7 +106,7 @@ class Embedder:
         box = clipped_crop_box(record.bbox_xywh, image.width, image.height, padding_ratio)
         return image.crop(box)
 
-    # --- embeddings -------------------------------------------------------
+    # embeddings
     def embed_images(self, images: list[Image.Image]) -> np.ndarray:
         """Encode a list of PIL images into an (N, dim) float32 array."""
         if not images:
@@ -116,11 +116,13 @@ class Embedder:
         with torch.inference_mode():
             features = self._model.encode_image(batch)
             features = features / features.norm(dim=-1, keepdim=True).clamp_min(1e-12)
-        return features.detach().cpu().numpy().astype(np.float32)
+        embeddings: np.ndarray = features.detach().cpu().numpy().astype(np.float32)
+        return embeddings
 
     def embed_image(self, image: Image.Image) -> np.ndarray:
         """Encode a single image into a (dim,) float32 vector."""
-        return self.embed_images([image])[0]
+        single_embedding: np.ndarray = self.embed_images([image])[0]
+        return single_embedding
 
     def embed_path(self, path: str | Path) -> np.ndarray:
         """Load a whole image from disk and embed it (used for query uploads)."""

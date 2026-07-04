@@ -47,7 +47,7 @@ class MilvusClient:
         self.alias = alias
         connections.connect(alias=alias, host=host, port=port)
 
-    # --- schema / lifecycle ----------------------------------------------
+    # schema / lifecycle
     @staticmethod
     def _schema(
         embedding_dim: int,
@@ -139,7 +139,7 @@ class MilvusClient:
         return ""
 
     def has_collection(self, name: str) -> bool:
-        return utility.has_collection(name, using=self.alias)
+        return bool(utility.has_collection(name, using=self.alias))
 
     def list_collections(self) -> list[str]:
         return list(utility.list_collections(using=self.alias))
@@ -149,7 +149,7 @@ class MilvusClient:
         collection.flush()
         return int(collection.num_entities)
 
-    # --- writes -----------------------------------------------------------
+    # writes
     def insert(self, name: str, rows: list[dict[str, Any]]) -> int:
         """Insert rows (each a dict with the schema fields + embedding)."""
         if not rows:
@@ -172,7 +172,7 @@ class MilvusClient:
         collection.flush()
         return int(mutation.insert_count)
 
-    # --- reads ------------------------------------------------------------
+    # reads
     def fetch_all(self, name: str) -> dict[str, Any]:
         """Load every item's embedding + metadata for offline projection.
 

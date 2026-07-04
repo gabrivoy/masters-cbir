@@ -11,14 +11,14 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-# --- Milvus ---------------------------------------------------------------
+# Milvus
 # Host/port are overridable by env vars so the same code reaches Milvus at
 # 127.0.0.1 locally and at the `milvus` service name inside docker-compose.
 MILVUS_HOST = os.getenv("CBIR_MILVUS_HOST", "127.0.0.1")
 MILVUS_PORT = os.getenv("CBIR_MILVUS_PORT", "19530")
 MILVUS_ALIAS = "default"
 
-# --- Embedding models -----------------------------------------------------
+# Embedding models
 # Maps a short, stable name to the open_clip loading spec. The slug is what we
 # bake into collection names and cache filenames so different models never
 # collide.
@@ -36,7 +36,7 @@ MODEL_SPECS: dict[str, dict[str, str]] = {
 }
 DEFAULT_MODEL = "openclip-vit-b-32"
 
-# --- Crop / extraction ----------------------------------------------------
+# Crop / extraction
 # The persisted unit is the raw bbox; padding is a runtime knob. 0.0 keeps the
 # crop tight to the annotation (see docs/CONSIDERATIONS_01.md).
 DEFAULT_PADDING_RATIO = 0.0
@@ -46,12 +46,12 @@ DEFAULT_BATCH_SIZE = 32
 # multi-threaded CPU. Any explicit device falls back to CPU if unavailable.
 DEFAULT_DEVICE = "auto"
 
-# --- Projection -----------------------------------------------------------
+# Projection
 # PCA is deterministic, so a seed is only cosmetic, but we fix one anyway so
 # the SVD solver behaves identically across runs.
 PCA_SEED = 42
 
-# --- Paths ----------------------------------------------------------------
+# Paths
 
 
 def repo_root() -> Path:
