@@ -1,22 +1,58 @@
-# CBIR — Explorador de Espaço Vetorial para Imagens de Embarcações
+# Explorador de Espaço Vetorial para Imagens
 
-**Projeto Final de Programação — INF2102 — PUC-Rio**
-**Aluno:** Gabriel Ribeiro
-**Orientador:** _[preencher]_
-**Palavras-chave:** Content-Based Image Retrieval, embeddings de imagem, banco de dados vetorial, PCA, K-Nearest Neighbors, rotulagem automática.
+**Projeto Final de Programação (INF2102), PUC-Rio**
+**Aluno:** Gabriel Ribeiro Gomes (ggomes@inf.puc-rio.br)
+**Orientador:** Alberto Barbosa Raposo (abraposo@inf.puc-rio.br)
+**Palavras-chave:** recuperação de imagens por conteúdo, embeddings de imagem, banco de dados vetorial, PCA, K-Nearest Neighbors, rotulagem automática.
+
+> **Estudo de caso e dados de exemplo:** o sistema é genérico e funciona com
+> qualquer imagem. O conjunto de amostra usado nas demonstrações vem de um
+> projeto de monitoramento de embarcações na Baía de Guanabara (TecGraf
+> PUC-Rio / Embraer), mas nada no sistema é específico desse domínio.
+
+---
+
+## O que é Recuperação de Imagens por Conteúdo (CBIR)
+
+Recuperação de imagens por conteúdo (do inglês *Content-Based Image Retrieval*,
+CBIR) é a tarefa de buscar imagens semelhantes a uma imagem de consulta usando o
+*próprio conteúdo visual*, e não texto, etiquetas ou metadados associados. A
+ideia central: converter cada imagem em um vetor numérico (um *embedding*) que
+captura suas características visuais, de modo que imagens parecidas fiquem
+próximas em um espaço vetorial e imagens diferentes fiquem distantes. A busca
+por semelhança vira, então, uma busca por vizinhos mais próximos nesse espaço.
+
+Isso é importante por várias razões práticas e de pesquisa:
+
+- **Busca sem rótulos:** permite encontrar imagens relevantes mesmo quando não
+  há descrição textual, o que é comum em grandes acervos não anotados.
+- **Rotulagem automática:** se uma imagem nova cai perto de um aglomerado de
+  imagens de classe conhecida, pode-se propor um rótulo para ela. Esse é o
+  princípio que motiva este trabalho e a dissertação associada.
+- **Avaliação de representações:** a qualidade de um *embedding* pode ser
+  julgada por quão bem ele agrupa imagens da mesma classe e separa classes
+  diferentes.
+
+O desafio central da área é obter representações (embeddings) que capturem
+semelhança *semântica*, e não apenas semelhança de pixels: duas fotos do mesmo
+objeto sob ângulos ou iluminações diferentes devem ficar próximas. Modelos
+modernos de visão (como CLIP) produzem embeddings genéricos fortes, e uma parte
+importante da pesquisa em CBIR é justamente medir o quão confiáveis esses
+embeddings são para uma tarefa concreta. Este programa serve exatamente a esse
+propósito: tornar visível e mensurável o comportamento de recuperação.
 
 ---
 
 ## Breve Descrição
 
-O **CBIR — Explorador de Espaço Vetorial** é uma ferramenta para *recuperação de
-imagens por conteúdo* (Content-Based Image Retrieval) aplicada a recortes de
-embarcações. O programa indexa *embeddings* de imagem em um banco de dados
-vetorial e permite **explorar visualmente o espaço de representação**: projeta a
-galeria indexada em 2D/3D via PCA, aceita uma imagem de consulta, e mostra onde
-ela se posiciona em relação aos aglomerados (clusters) de cada classe — além de
-prever, por votação K-Nearest-Neighbors sobre os vizinhos recuperados, a que
-classe a imagem consultada pertenceria, com um grau de confiança.
+O **Explorador de Espaço Vetorial para Imagens** é uma ferramenta de recuperação
+de imagens por conteúdo. O programa indexa *embeddings* de imagem em um banco de
+dados vetorial e permite **explorar visualmente o espaço de representação**:
+projeta a galeria indexada em 2D/3D via PCA, aceita uma imagem de consulta, e
+mostra onde ela se posiciona em relação aos aglomerados (clusters) de cada
+classe. Além disso, prevê por votação K-Nearest-Neighbors (KNN) sobre os
+vizinhos recuperados a que classe a imagem consultada pertenceria, com um grau
+de confiança.
 
 **Principais funções que o programa oferece:**
 
@@ -30,7 +66,7 @@ classe a imagem consultada pertenceria, com um grau de confiança.
 
 **Usuários visados:** pesquisadores e estudantes de *CBIR* / visão computacional
 que precisam **conferir visualmente** se a recuperação e a classificação de suas
-representações estão coerentes — em vez de confiar apenas em métricas agregadas.
+representações estão coerentes, em vez de confiar apenas em métricas agregadas.
 
 **Natureza do programa:** ferramenta utilitária funcional (prova de conceito
 madura), servindo de base experimental para uma dissertação de mestrado sobre
@@ -49,36 +85,36 @@ especializado no domínio.
 Esta seção apresenta quatro cenários (dois positivos e dois negativos) que
 orientam a intenção do criador e a interpretação do usuário.
 
-### Cenário Positivo 1 — Conferir um agrupamento coerente
+### Cenário Positivo 1: Conferir um agrupamento coerente
 
 Marina, pesquisadora de CBIR, quer saber se um *embedding* genérico separa bem
 recortes de `Traineira` de `Rebocador`. Ela indexa a galeria de amostra, abre o
 explorador, escolhe a projeção 3D e vê quatro nuvens de cor razoavelmente
 distintas. Ela arrasta um recorte de `Rebocador` como consulta: o ponto vermelho
 cai **dentro** da nuvem de `Rebocador`, os 10 vizinhos exibidos são todos
-rebocadores, e o painel de predição mostra **"seria rotulada como Rebocador —
+rebocadores, e o painel de predição mostra **"seria rotulada como Rebocador,
 90% de confiança"**. Marina conclui, visualmente, que a representação é adequada
 para essa classe naquela faixa de tamanho.
 
 > Este cenário evoca as funções centrais: indexação, projeção, consulta e
-> predição. Note que Marina não precisou de nenhuma métrica agregada — a
+> predição. Note que Marina não precisou de nenhuma métrica agregada: a
 > resposta veio da posição do ponto e da concordância dos vizinhos.
 
-### Cenário Positivo 2 — Trocar de modelo com garantia de consistência
+### Cenário Positivo 2: Trocar de modelo com garantia de consistência
 
 Pedro desconfia que patches menores capturariam melhor embarcações pequenas.
 Ele reindexa a mesma galeria com `openclip-vit-b-16` em uma coleção separada.
 Ao abrir o explorador e selecionar essa coleção, a interface exibe **"modelo de
 embedding: openclip-vit-b-16"** e garante que qualquer consulta será *embeddada*
 com esse mesmo modelo. Pedro compara as duas projeções lado a lado e decide qual
-modelo separa melhor as classes — sem risco de comparar vetores de espaços
+modelo separa melhor as classes, sem risco de comparar vetores de espaços
 diferentes.
 
 > Este cenário evoca a troca de modelos e a **garantia de consistência**: a
 > coleção "lembra" com qual modelo foi construída, e o sistema recusa misturar
 > espaços de *embedding*.
 
-### Cenário Negativo 1 — Consulta com modelo incompatível
+### Cenário Negativo 1: Consulta com modelo incompatível
 
 Ana tenta, via API, consultar uma coleção construída com `openclip-vit-b-32`
 forçando o modelo `openclip-vit-b-16`. O sistema **recusa** a operação com um
@@ -91,18 +127,18 @@ incomparáveis"*.
 > de forma clara a devolver um resultado silenciosamente incorreto. Não há como
 > contornar isso pela interface, e é intencional.
 
-### Cenário Negativo 2 — Recorte ambíguo mal classificado
+### Cenário Negativo 2: Recorte ambíguo mal classificado
 
 João consulta com um recorte de `Traineira` pequeno e distante, capturado ao
 fundo de uma cena. O ponto de consulta cai na fronteira entre `Traineira` e
 `Navio de Carga Geral`, e a predição KNN retorna **"Navio de Carga Geral"** com
-alta confiança — um erro. Ao inspecionar os vizinhos exibidos, João percebe que
+alta confiança (um erro). Ao inspecionar os vizinhos exibidos, João percebe que
 todos são embarcações pequenas e distantes da mesma câmera: visualmente
 parecidas, apenas alguns pixels.
 
 > Este cenário expõe uma limitação diferente da anterior: para objetos muito
 > pequenos, o *embedding* genérico captura mais o contexto de cena do que o
-> objeto. O programa não esconde isso — ao contrário, a ferramenta **serve
+> objeto. O programa não esconde isso: ao contrário, a ferramenta **serve
 > exatamente para tornar esse tipo de falha visível**, o que é um resultado de
 > pesquisa, não um defeito de software.
 
@@ -118,11 +154,11 @@ compartilhados.
 
 ```mermaid
 flowchart TB
-    subgraph FE["Frontend — Streamlit (cbir/app)"]
+    subgraph FE["Frontend: Streamlit (cbir/app)"]
       UI[Explorador de espaço vetorial]
       CL[Cliente HTTP]
     end
-    subgraph API["API — FastAPI (cbir/api)"]
+    subgraph API["API: FastAPI (cbir/api)"]
       EP["health · models · collections<br/>project · query · crop"]
     end
     subgraph SVC["Serviço (cbir/service.py)"]
@@ -303,7 +339,7 @@ sequenceDiagram
 | Adequado a "onde minha consulta cai vs. clusters" | **Ideal** | Enganoso para posicionamento absoluto |
 
 A escolha de PCA é o que torna correta a pergunta central do programa: *onde
-esta imagem nova cai em relação aos clusters existentes?* — algo que exige
+esta imagem nova cai em relação aos clusters existentes?*, algo que exige
 aplicar exatamente a mesma transformação linear à consulta e à galeria.
 
 ### A garantia de consistência de modelo
@@ -419,15 +455,15 @@ Passo 2: docker compose up -d    # sobe Milvus (etcd + minio + milvus + Attu)
 Passo 3: aguarde o Milvus ficar "healthy" (docker compose ps)
 ```
 
-### Tarefa A — Rodar a demonstração (sem GPU, sem baixar modelo)
+### Tarefa A: Rodar a demonstração (sem GPU, sem baixar modelo)
 
 ```text
 Guia de Instruções:
 %%%%%%%%%%%%%%%%%%%%
 Passo 1: uv run cbir seed --collection cbir_sample \
              --parquet cbir/sample_data/embeddings.parquet
-Passo 2: uv run cbir api        # terminal 1 — API em :8100
-Passo 3: uv run cbir app        # terminal 2 — frontend em :8501
+Passo 2: uv run cbir api        # terminal 1: API em :8100
+Passo 3: uv run cbir app        # terminal 2: frontend em :8501
 Passo 4: abra http://localhost:8501, escolha a coleção "cbir_sample"
 Passo 5: envie um recorte de cbir/sample_data/crops/ como consulta
 
@@ -447,7 +483,7 @@ Se [o gráfico aparece vazio]
     }
 ```
 
-### Tarefa B — Indexar dados próprios
+### Tarefa B: Indexar dados próprios
 
 ```text
 Guia de Instruções:
@@ -510,4 +546,4 @@ O sistema foi validado de ponta a ponta na máquina de desenvolvimento
 | `ruff` / `mypy` / `pytest` | Limpo / limpo / 30 testes passando |
 | Reconstrução via cache (`seed`) | Coleção recriada em ~3 s sem modelo/GPU |
 
-_Data: _[preencher]_ — repositório: `cbir/`._
+_Data: [preencher]. Repositório: `cbir/`._

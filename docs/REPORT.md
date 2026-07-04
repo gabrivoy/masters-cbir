@@ -1,21 +1,55 @@
-# CBIR — Vector-Space Explorer for Vessel Images
+# Vector-Space Explorer for Images
 
-**Programming Final Project — INF2102 — PUC-Rio**
-**Student:** Gabriel Ribeiro
-**Advisor:** _[to fill in]_
-**Keywords:** Content-Based Image Retrieval, image embeddings, vector database, PCA, K-Nearest Neighbors, automatic labeling.
+**Programming Final Project (INF2102), PUC-Rio**
+**Student:** Gabriel Ribeiro Gomes (ggomes@inf.puc-rio.br)
+**Advisor:** Alberto Barbosa Raposo (abraposo@inf.puc-rio.br)
+**Keywords:** content-based image retrieval, image embeddings, vector database, PCA, K-Nearest Neighbors, automatic labeling.
+
+> **Case study and sample data:** the system is generic and works with any
+> image. The sample set used in the demonstrations comes from a vessel-monitoring
+> project in Guanabara Bay (TecGraf PUC-Rio / Embraer), but nothing in the system
+> is specific to that domain.
+
+---
+
+## What is Content-Based Image Retrieval (CBIR)
+
+Content-Based Image Retrieval (CBIR) is the task of searching for images similar
+to a query image using the *visual content itself*, rather than associated text,
+tags, or metadata. The core idea: convert each image into a numeric vector (an
+*embedding*) that captures its visual features, so that similar images end up
+close together in a vector space and different images end up far apart.
+Similarity search then becomes a nearest-neighbour search in that space.
+
+This matters for several practical and research reasons:
+
+- **Label-free search:** it lets you find relevant images even when there is no
+  textual description, which is common in large unannotated collections.
+- **Automatic labeling:** if a new image falls near a cluster of images of a
+  known class, a label can be proposed for it. This is the principle that
+  motivates this work and the associated dissertation.
+- **Evaluating representations:** the quality of an *embedding* can be judged by
+  how well it groups images of the same class and separates different classes.
+
+The central challenge of the field is obtaining representations (embeddings)
+that capture *semantic* similarity, not just pixel similarity: two photos of the
+same object under different angles or lighting should end up close together.
+Modern vision models (such as CLIP) produce strong generic embeddings, and an
+important part of CBIR research is precisely measuring how reliable those
+embeddings are for a concrete task. This program serves exactly that purpose:
+making retrieval behaviour visible and measurable.
 
 ---
 
 ## Brief Description
 
-The **CBIR — Vector-Space Explorer** is a tool for *Content-Based Image
-Retrieval* applied to vessel bounding-box crops. It indexes image *embeddings*
-into a vector database and lets you **explore the representation space
-visually**: it projects the indexed gallery to 2D/3D with PCA, accepts a query
-image, and shows where it lands relative to each class cluster — plus, via a
-K-Nearest-Neighbors vote over the retrieved neighbours, it predicts which class
-the queried image would belong to, with a confidence score.
+The **Vector-Space Explorer for Images** is a content-based image retrieval
+tool. It indexes image *embeddings* into a vector database and lets you
+**explore the representation space visually**: it projects the indexed gallery
+to 2D/3D with PCA, accepts a query image, and shows where it lands relative to
+each class cluster. In addition, via a K-Nearest-Neighbors (KNN) vote over the
+retrieved neighbours, it predicts which class the queried image would belong to,
+with a confidence score.
 
 **Main functions the program offers:**
 
@@ -29,7 +63,7 @@ the queried image would belong to, with a confidence score.
 
 **Intended users:** researchers and students of *CBIR* / computer vision who
 need to **visually check** whether the retrieval and classification of their
-representations are coherent — rather than relying only on aggregate metrics.
+representations are coherent, rather than relying only on aggregate metrics.
 
 **Nature of the program:** a functional utility tool (a mature proof of
 concept), serving as the experimental basis for a master's dissertation on
@@ -47,7 +81,7 @@ come from a generic external model (OpenCLIP), not a domain-specialized one.
 This section presents four scenarios (two positive and two negative) that guide
 the creator's intent and the user's interpretation.
 
-### Positive Scenario 1 — Confirming a coherent grouping
+### Positive Scenario 1: Confirming a coherent grouping
 
 Marina, a CBIR researcher, wants to know whether a generic *embedding* cleanly
 separates `Traineira` (fishing boat) crops from `Rebocador` (tugboat). She
@@ -55,28 +89,28 @@ indexes the sample gallery, opens the explorer, picks the 3D projection, and
 sees four reasonably distinct colour clouds. She drops a `Rebocador` crop as the
 query: the red point lands **inside** the `Rebocador` cloud, the 10 displayed
 neighbours are all tugboats, and the prediction panel shows **"would be labeled
-Rebocador — 90% confidence"**. Marina concludes, visually, that the
+Rebocador (90% confidence)"**. Marina concludes, visually, that the
 representation is adequate for that class in that size range.
 
 > This scenario evokes the core functions: indexing, projection, query, and
-> prediction. Note that Marina needed no aggregate metric — the answer came from
+> prediction. Note that Marina needed no aggregate metric: the answer came from
 > the point's position and the neighbours' agreement.
 
-### Positive Scenario 2 — Swapping models with a consistency guarantee
+### Positive Scenario 2: Swapping models with a consistency guarantee
 
 Pedro suspects that smaller patches would capture small vessels better. He
 re-indexes the same gallery with `openclip-vit-b-16` into a separate collection.
 On opening the explorer and selecting that collection, the interface shows
 **"embedding model: openclip-vit-b-16"** and guarantees that any query will be
 *embedded* with that same model. Pedro compares the two projections side by side
-and decides which model separates the classes better — with no risk of
+and decides which model separates the classes better, with no risk of
 comparing vectors from different spaces.
 
 > This scenario evokes model swapping and the **consistency guarantee**: the
 > collection "remembers" which model built it, and the system refuses to mix
 > *embedding* spaces.
 
-### Negative Scenario 1 — Query with an incompatible model
+### Negative Scenario 1: Query with an incompatible model
 
 Ana tries, via the API, to query a collection built with `openclip-vit-b-32`
 while forcing the `openclip-vit-b-16` model. The system **refuses** the
@@ -89,18 +123,18 @@ would be incomparable"*.
 > fail clearly rather than silently return an incorrect result. There is no way
 > around it through the interface, and that is by design.
 
-### Negative Scenario 2 — Misclassified ambiguous crop
+### Negative Scenario 2: Misclassified ambiguous crop
 
 João queries with a small, distant `Traineira` crop captured in the background
 of a scene. The query point lands on the boundary between `Traineira` and
 `Navio de Carga Geral` (general cargo ship), and the KNN prediction returns
-**"Navio de Carga Geral"** with high confidence — a mistake. On inspecting the
+**"Navio de Carga Geral"** with high confidence (a mistake). On inspecting the
 displayed neighbours, João realizes they are all small, distant vessels from the
 same camera: visually alike, just a few pixels.
 
 > This scenario exposes a different limitation from the previous one: for very
 > small objects, the generic *embedding* captures the scene context more than
-> the object itself. The program does not hide this — on the contrary, the tool
+> the object itself. The program does not hide this; on the contrary, the tool
 > **exists precisely to make this kind of failure visible**, which is a research
 > result, not a software defect.
 
@@ -115,11 +149,11 @@ The system is organized into three layers with a one-directional dependency
 
 ```mermaid
 flowchart TB
-    subgraph FE["Frontend — Streamlit (cbir/app)"]
+    subgraph FE["Frontend: Streamlit (cbir/app)"]
       UI[Vector-space explorer]
       CL[HTTP client]
     end
-    subgraph API["API — FastAPI (cbir/api)"]
+    subgraph API["API: FastAPI (cbir/api)"]
       EP["health · models · collections<br/>project · query · crop"]
     end
     subgraph SVC["Service (cbir/service.py)"]
@@ -300,7 +334,7 @@ sequenceDiagram
 | Suited to "where does my query fall vs. clusters" | **Ideal** | Misleading for absolute placement |
 
 The choice of PCA is what makes the program's central question well-posed:
-*where does this new image fall relative to the existing clusters?* — which
+*where does this new image fall relative to the existing clusters?* This
 requires applying exactly the same linear transform to the query and the
 gallery.
 
@@ -417,15 +451,15 @@ Step 2: docker compose up -d    # start Milvus (etcd + minio + milvus + Attu)
 Step 3: wait until Milvus is "healthy" (docker compose ps)
 ```
 
-### Task A — Run the demo (no GPU, no model download)
+### Task A: Run the demo (no GPU, no model download)
 
 ```text
 Instruction Guide:
 %%%%%%%%%%%%%%%%%%%
 Step 1: uv run cbir seed --collection cbir_sample \
              --parquet cbir/sample_data/embeddings.parquet
-Step 2: uv run cbir api        # terminal 1 — API on :8100
-Step 3: uv run cbir app        # terminal 2 — frontend on :8501
+Step 2: uv run cbir api        # terminal 1: API on :8100
+Step 3: uv run cbir app        # terminal 2: frontend on :8501
 Step 4: open http://localhost:8501, choose the "cbir_sample" collection
 Step 5: upload a crop from cbir/sample_data/crops/ as the query
 
@@ -445,7 +479,7 @@ If [the chart appears empty]
     }
 ```
 
-### Task B — Index your own data
+### Task B: Index your own data
 
 ```text
 Instruction Guide:
@@ -508,4 +542,4 @@ The system was validated end to end on the development machine (Apple Silicon,
 | `ruff` / `mypy` / `pytest` | Clean / clean / 30 tests passing |
 | Reconstruction via cache (`seed`) | Collection recreated in ~3 s without model/GPU |
 
-_Date: _[to fill in]_ — repository: `cbir/`._
+_Date: _[to fill in]_ (repository: `cbir/`)._

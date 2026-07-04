@@ -1,6 +1,6 @@
 %=============================================================================
-% Relatório Final — INF2102 Projeto Final de Programação — DI PUC-Rio
-% CBIR — Explorador de Espaço Vetorial para Imagens de Embarcações
+% Relatorio Final INF2102 (Projeto Final de Programacao), DI PUC-Rio
+% Explorador de Espaco Vetorial para Imagens
 %=============================================================================
 
 \documentclass[10pt]{article}
@@ -10,7 +10,7 @@
 % PREÂMBULO
 %=============================================================================
 
-\title{CBIR — Explorador de Espaço Vetorial para Imagens de Embarcações}
+\title{Explorador de Espaço Vetorial para Imagens}
 
 \usepackage[utf8]{inputenc}
 
@@ -42,7 +42,7 @@
 \fancyhead[R]{\footnotesize PUC-Rio}
 \fancyfoot[R]{\footnotesize INF2102}
 \fancyfoot[C]{\thepage}
-\fancyfoot[L]{\footnotesize Pós-Graduação — Mestrado em Informática}
+\fancyfoot[L]{\footnotesize Pós-Graduação, Mestrado em Informática}
 \renewcommand{\footrulewidth}{0.4pt}
 \fancypagestyle{firststyle}{\fancyhf{}}
 
@@ -78,7 +78,7 @@
 
 \begin{document}
 
-%--- Página de título --------------------------------------------------------
+% Página de título
 \thispagestyle{firststyle}
 \begin{center}
   \begin{minipage}{0.48\textwidth}\begin{flushleft}
@@ -91,18 +91,18 @@
   \vspace*{1.5cm}
 
   \textsc{\LARGE Departamento de Informática}\\[1.5cm]
-  \textsc{\LARGE INF2102 — Projeto Final de Programação}\\[1.5cm]
+  \textsc{\LARGE INF2102: Projeto Final de Programação}\\[1.5cm]
 
   \vspace{0.5cm}
   \vspace*{1cm}
 
-  {\huge\bfseries CBIR — Explorador de Espaço Vetorial\\ para Imagens de Embarcações}\\[0.4cm]
+  {\huge\bfseries Explorador de Espaço Vetorial para Imagens}\\[0.4cm]
   \vspace*{1cm}
   {\large
     \vspace*{0.2cm}
-    Gabriel Ribeiro \\[0.2cm]
-    \vspace*{0.9cm}
-    \emph{Orientador:} \\ {}[preencher]
+    Gabriel Ribeiro Gomes \\ \texttt{ggomes@inf.puc-rio.br} \\[0.4cm]
+    \vspace*{0.6cm}
+    \emph{Orientador:} \\ Alberto Barbosa Raposo \\ \texttt{abraposo@inf.puc-rio.br}
   }
 
   \vspace{2cm}
@@ -113,19 +113,56 @@
 
 \newpage
 
-%--- Breve Descrição ---------------------------------------------------------
+% O que é CBIR
+\section{O que é Recuperação de Imagens por Conteúdo (CBIR)}
+
+Recuperação de imagens por conteúdo (do inglês \emph{Content-Based Image
+Retrieval}, CBIR) é a tarefa de buscar imagens semelhantes a uma imagem de
+consulta usando o próprio conteúdo visual, e não texto, etiquetas ou metadados
+associados. A ideia central: converter cada imagem em um vetor numérico (um
+\emph{embedding}) que captura suas características visuais, de modo que imagens
+parecidas fiquem próximas em um espaço vetorial e imagens diferentes fiquem
+distantes. A busca por semelhança vira, então, uma busca por vizinhos mais
+próximos nesse espaço.
+
+Isso é importante por várias razões práticas e de pesquisa:
+
+\begin{itemize}
+  \item \textbf{Busca sem rótulos:} encontrar imagens relevantes mesmo quando
+  não há descrição textual, o que é comum em grandes acervos não anotados.
+  \item \textbf{Rotulagem automática:} se uma imagem nova cai perto de um
+  aglomerado de imagens de classe conhecida, pode-se propor um rótulo para ela.
+  Esse é o princípio que motiva este trabalho e a dissertação associada.
+  \item \textbf{Avaliação de representações:} a qualidade de um \emph{embedding}
+  pode ser julgada por quão bem ele agrupa imagens da mesma classe e separa
+  classes diferentes.
+\end{itemize}
+
+O desafio central da área é obter representações que capturem semelhança
+\emph{semântica}, e não apenas semelhança de pixels: duas fotos do mesmo objeto
+sob ângulos ou iluminações diferentes devem ficar próximas. Modelos modernos de
+visão (como CLIP) produzem embeddings genéricos fortes, e uma parte importante
+da pesquisa em CBIR é justamente medir o quão confiáveis esses embeddings são
+para uma tarefa concreta. Este programa serve exatamente a esse propósito:
+tornar visível e mensurável o comportamento de recuperação.
+
+\medskip
+\noindent\textbf{Estudo de caso e dados de exemplo.} O sistema é genérico e
+funciona com qualquer imagem. O conjunto de amostra usado nas demonstrações vem
+de um projeto de monitoramento de embarcações na Baía de Guanabara (TecGraf
+PUC-Rio / Embraer), mas nada no sistema é específico desse domínio.
+
+% Breve Descrição
 \section{Breve Descrição}
 
-O \textbf{CBIR — Explorador de Espaço Vetorial} é uma ferramenta para
-\emph{recuperação de imagens por conteúdo} (\emph{Content-Based Image
-Retrieval}) aplicada a recortes de embarcações. O programa indexa
-\emph{embeddings} de imagem em um banco de dados vetorial e permite
-\textbf{explorar visualmente o espaço de representação}: projeta a galeria
-indexada em 2D/3D via PCA, aceita uma imagem de consulta, e mostra onde ela se
-posiciona em relação aos aglomerados (\emph{clusters}) de cada classe — além de
-prever, por votação \emph{K-Nearest Neighbors} (KNN) sobre os vizinhos
-recuperados, a que classe a imagem consultada pertenceria, com um grau de
-confiança.
+O \textbf{Explorador de Espaço Vetorial para Imagens} é uma ferramenta de
+recuperação de imagens por conteúdo. O programa indexa \emph{embeddings} de
+imagem em um banco de dados vetorial e permite \textbf{explorar visualmente o
+espaço de representação}: projeta a galeria indexada em 2D/3D via PCA, aceita
+uma imagem de consulta, e mostra onde ela se posiciona em relação aos
+aglomerados (\emph{clusters}) de cada classe. Além disso, prevê por votação
+\emph{K-Nearest Neighbors} (KNN) sobre os vizinhos recuperados a que classe a
+imagem consultada pertenceria, com um grau de confiança.
 
 \subsection*{Principais funções}
 
@@ -147,7 +184,7 @@ Snapshot reproduzível & Exporta/reconstrói uma coleção a partir de um cache 
 
 \noindent\textbf{Usuários visados:} pesquisadores e estudantes de \emph{CBIR} /
 visão computacional que precisam \textbf{conferir visualmente} se a recuperação
-e a classificação de suas representações estão coerentes — em vez de confiar
+e a classificação de suas representações estão coerentes, em vez de confiar
 apenas em métricas agregadas.
 
 \medskip
@@ -162,13 +199,13 @@ mestrado sobre rotulagem automática por recuperação.
 o objeto de estudo. Os \emph{embeddings} vêm de um modelo genérico externo
 (OpenCLIP), não de um modelo especializado no domínio.
 
-%--- Visão de Projeto --------------------------------------------------------
+% Visão de Projeto
 \section{Visão de Projeto}
 
 Esta seção apresenta quatro cenários (dois positivos e dois negativos) que
 orientam a intenção do criador e a interpretação do usuário.
 
-\subsection{Cenário Positivo 1 — Conferir um agrupamento coerente}
+\subsection{Cenário Positivo 1: Conferir um agrupamento coerente}
 
 Marina, pesquisadora de CBIR, quer saber se um \emph{embedding} genérico separa
 bem recortes de \texttt{Traineira} de \texttt{Rebocador}. Ela indexa a galeria
@@ -176,24 +213,24 @@ de amostra, abre o explorador, escolhe a projeção 3D e vê quatro nuvens de co
 razoavelmente distintas. Ela arrasta um recorte de \texttt{Rebocador} como
 consulta: o ponto vermelho cai \textbf{dentro} da nuvem de \texttt{Rebocador},
 os 10 vizinhos exibidos são todos rebocadores, e o painel de predição mostra
-\textbf{``seria rotulada como Rebocador — 90\% de confiança''}. Marina conclui,
+\textbf{``seria rotulada como Rebocador, 90\% de confiança''}. Marina conclui,
 visualmente, que a representação é adequada para essa classe naquela faixa de
 tamanho.
 
 \begin{quote}\small
 Este cenário evoca as funções centrais: indexação, projeção, consulta e
-predição. Note que Marina não precisou de nenhuma métrica agregada — a resposta
+predição. Note que Marina não precisou de nenhuma métrica agregada: a resposta
 veio da posição do ponto e da concordância dos vizinhos.
 \end{quote}
 
-\subsection{Cenário Positivo 2 — Trocar de modelo com garantia de consistência}
+\subsection{Cenário Positivo 2: Trocar de modelo com garantia de consistência}
 
 Pedro desconfia que \emph{patches} menores capturariam melhor embarcações
 pequenas. Ele reindexa a mesma galeria com \texttt{openclip-vit-b-16} em uma
 coleção separada. Ao abrir o explorador e selecionar essa coleção, a interface
 exibe \textbf{``modelo de embedding: openclip-vit-b-16''} e garante que qualquer
 consulta será \emph{embeddada} com esse mesmo modelo. Pedro compara as duas
-projeções lado a lado e decide qual modelo separa melhor as classes — sem risco
+projeções lado a lado e decide qual modelo separa melhor as classes, sem risco
 de comparar vetores de espaços diferentes.
 
 \begin{quote}\small
@@ -202,7 +239,7 @@ coleção ``lembra'' com qual modelo foi construída, e o sistema recusa mistura
 espaços de \emph{embedding}.
 \end{quote}
 
-\subsection{Cenário Negativo 1 — Consulta com modelo incompatível}
+\subsection{Cenário Negativo 1: Consulta com modelo incompatível}
 
 Ana tenta, via API, consultar uma coleção construída com
 \texttt{openclip-vit-b-32} forçando o modelo \texttt{openclip-vit-b-16}. O
@@ -217,24 +254,24 @@ falhar de forma clara a devolver um resultado silenciosamente incorreto. Não h�
 como contornar isso pela interface, e é intencional.
 \end{quote}
 
-\subsection{Cenário Negativo 2 — Recorte ambíguo mal classificado}
+\subsection{Cenário Negativo 2: Recorte ambíguo mal classificado}
 
 João consulta com um recorte de \texttt{Traineira} pequeno e distante, capturado
 ao fundo de uma cena. O ponto de consulta cai na fronteira entre
 \texttt{Traineira} e \texttt{Navio de Carga Geral}, e a predição KNN retorna
-\textbf{``Navio de Carga Geral''} com alta confiança — um erro. Ao inspecionar
+\textbf{``Navio de Carga Geral''} com alta confiança (um erro). Ao inspecionar
 os vizinhos exibidos, João percebe que todos são embarcações pequenas e
 distantes da mesma câmera: visualmente parecidas, apenas alguns \emph{pixels}.
 
 \begin{quote}\small
 Este cenário expõe uma limitação diferente da anterior: para objetos muito
 pequenos, o \emph{embedding} genérico captura mais o contexto de cena do que o
-objeto. O programa não esconde isso — ao contrário, a ferramenta \textbf{serve
+objeto. O programa não esconde isso: ao contrário, a ferramenta \textbf{serve
 exatamente para tornar esse tipo de falha visível}, o que é um resultado de
 pesquisa, não um defeito de software.
 \end{quote}
 
-%--- Documentação Técnica ----------------------------------------------------
+% Documentação Técnica
 \section{Documentação Técnica do Projeto}
 
 \subsection{Modelo de Arquitetura}
@@ -338,7 +375,7 @@ Preserva distâncias globais & Sim (linear) & Foco em estrutura local \\
 \end{table}
 
 A escolha de PCA é o que torna correta a pergunta central do programa:
-\emph{onde esta imagem nova cai em relação aos clusters existentes?} — algo que
+\emph{onde esta imagem nova cai em relação aos clusters existentes?}, algo que
 exige aplicar exatamente a mesma transformação linear à consulta e à galeria.
 
 \subsection{A garantia de consistência de modelo}
@@ -429,7 +466,7 @@ uv run mypy cbir/                # tipos
 uv run pytest                    # testes
 \end{lstlisting}
 
-%--- Manual ------------------------------------------------------------------
+% Manual
 \section{Manual de Utilização}
 
 O manual cobre os dois tipos de usuário visados: quem quer \textbf{rodar a
@@ -443,25 +480,25 @@ docker compose up -d    # sobe Milvus (etcd + minio + milvus + Attu)
 # aguarde o Milvus ficar "healthy" (docker compose ps)
 \end{lstlisting}
 
-\subsection{Tarefa A — Rodar a demonstração (sem GPU, sem baixar modelo)}
+\subsection{Tarefa A: Rodar a demonstração (sem GPU, sem baixar modelo)}
 
 \begin{lstlisting}[language=bash]
 uv run cbir seed --collection cbir_sample \
     --parquet cbir/sample_data/embeddings.parquet
-uv run cbir api    # terminal 1 — API em :8100
-uv run cbir app    # terminal 2 — frontend em :8501
+uv run cbir api    # terminal 1: API em :8100
+uv run cbir app    # terminal 2: frontend em :8501
 # abra http://localhost:8501, escolha "cbir_sample" e envie um recorte
 \end{lstlisting}
 
 \noindent\textbf{Exceções e problemas comuns:}
 \begin{itemize}
-  \item \emph{``API not reachable''} — confirme que \texttt{cbir api} está
+  \item \emph{``API not reachable''}: confirme que \texttt{cbir api} está
   rodando e a porta 8100 está livre.
-  \item \emph{Gráfico vazio} — rode \texttt{cbir seed} antes de abrir o app; a
+  \item \emph{Gráfico vazio}: rode \texttt{cbir seed} antes de abrir o app; a
   coleção precisa existir.
 \end{itemize}
 
-\subsection{Tarefa B — Indexar dados próprios}
+\subsection{Tarefa B: Indexar dados próprios}
 
 \begin{lstlisting}[language=bash]
 uv run cbir index --manifest <caminho> --collection <nome> \
@@ -472,9 +509,9 @@ uv run cbir export --collection <nome> --model openclip-vit-b-32
 
 \noindent\textbf{Exceções e problemas comuns:}
 \begin{itemize}
-  \item \emph{``No records selected''} — revise \texttt{--split} /
+  \item \emph{``No records selected''}: revise \texttt{--split} /
   \texttt{--benchmark-only} / \texttt{--per-class}.
-  \item \emph{Consulta recusada com \texttt{409}} — a coleção foi construída com
+  \item \emph{Consulta recusada com \texttt{409}}: a coleção foi construída com
   outro modelo; use o modelo da coleção.
 \end{itemize}
 
@@ -514,7 +551,7 @@ GET  & \texttt{/crop} & Serve um recorte por caminho de \emph{manifest} \\
 \caption{Endpoints da API.}
 \end{table}
 
-%--- Verificação -------------------------------------------------------------
+% Verificação
 \section{Verificação}
 
 O sistema foi validado de ponta a ponta na máquina de desenvolvimento
