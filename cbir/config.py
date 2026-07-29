@@ -33,6 +33,11 @@ MODEL_SPECS: dict[str, dict[str, str]] = {
         "pretrained": "openai",
         "slug": "openclip_vit_b_16_openai",
     },
+    "openclip-vit-l-14": {
+        "open_clip_model_name": "ViT-L-14",
+        "pretrained": "openai",
+        "slug": "openclip_vit_l_14_openai",
+    },
 }
 DEFAULT_MODEL = "openclip-vit-b-32"
 
