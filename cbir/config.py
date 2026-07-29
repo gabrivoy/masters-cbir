@@ -38,6 +38,16 @@ MODEL_SPECS: dict[str, dict[str, str]] = {
         "pretrained": "openai",
         "slug": "openclip_vit_l_14_openai",
     },
+    "openclip-vit-l-14-dfn": {
+        "open_clip_model_name": "ViT-L-14-quickgelu",
+        "pretrained": "dfn2b",
+        "slug": "openclip_vit_l_14_dfn2b",
+    },
+    "siglip2-vit-l-16": {
+        "open_clip_model_name": "ViT-L-16-SigLIP2-256",
+        "pretrained": "webli",
+        "slug": "siglip2_vit_l_16_webli",
+    },
 }
 DEFAULT_MODEL = "openclip-vit-b-32"
 
