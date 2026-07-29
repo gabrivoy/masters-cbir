@@ -87,7 +87,23 @@ class Embedder:
         model.eval()
         self._model = model
         self._preprocess = preprocess
-        self.embedding_dim = int(self._model.visual.output_dim)
+        self.embedding_dim = self._resolve_embedding_dim()
+
+    def _resolve_embedding_dim(self) -> int:
+        """The image embedding width.
+
+        Standard open_clip vision towers expose `visual.output_dim`, but the
+        timm-backed ones (e.g. SigLIP/SigLIP2) do not, so we fall back to probing:
+        push a preprocessed dummy image through `encode_image` and read the width.
+        """
+        try:
+            return int(self._model.visual.output_dim)
+        except AttributeError:
+            from PIL import Image
+
+            dummy = self._preprocess(Image.new("RGB", (224, 224))).unsqueeze(0).to(self.device)
+            with torch.no_grad():
+                return int(self._model.encode_image(dummy).shape[-1])
 
     # crops
     def crop_from_record(
